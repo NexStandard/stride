@@ -21,7 +21,7 @@ namespace Stride.Core.Reflection
         private static readonly Dictionary<Assembly, HashSet<string>> MapAssemblyToCategories = new Dictionary<Assembly, HashSet<string>>();
         private static readonly Dictionary<Assembly, ScanTypes> AssemblyToScanTypes = new Dictionary<Assembly, ScanTypes>();
         private static readonly Dictionary<string, Assembly> AssemblyNameToAssembly = new Dictionary<string, Assembly>(StringComparer.OrdinalIgnoreCase);
-
+        public static readonly NewDataSerializerFactory NewDataSerializerFactory = new NewDataSerializerFactory();
         static AssemblyRegistry()
         {
             Register(typeof(AssemblyRegistry).Assembly, "core"); // to be included in FindAll()
@@ -62,7 +62,7 @@ namespace Stride.Core.Reflection
             // TODO: At some point we might want to reorganize AssemblyRegistry and DataSerializerFactory
             // I am not sure the list of assemblies matches between those two (some assemblies are probably not registered in AssemblyRegistry),
             // so the semantic of GetTypeFromAlias (which include all assemblies) might be different than GetType.
-            return DataSerializerFactory.GetTypeFromAlias(alias);
+            return NewDataSerializerFactory.GetTypeFromAlias(alias);
         }
 
         /// <summary>

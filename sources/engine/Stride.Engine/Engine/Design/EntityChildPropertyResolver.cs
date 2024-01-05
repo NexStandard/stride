@@ -36,7 +36,7 @@ namespace Stride.Engine.Design
             // TODO: Temporary hack to get static field of the requested type/property name
             // Need to have access to DataContract name<=>type mapping in the runtime (only accessible in Stride.Core.Design now)
             var typeName = (dotIndex == -1) ? indexerName : indexerName.Substring(0, dotIndex);
-            var type = DataSerializerFactory.GetTypeFromAlias(typeName);
+            var type = AssemblyRegistry.GetTypeFromAlias(typeName);
             if (type == null)
                 throw new InvalidOperationException($"Can't find a type with alias {typeName}; did you properly set a DataContractAttribute with this alias?");
 

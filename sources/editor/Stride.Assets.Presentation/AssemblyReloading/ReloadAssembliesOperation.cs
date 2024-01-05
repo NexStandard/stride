@@ -91,8 +91,6 @@ namespace Stride.Assets.Presentation.AssemblyReloading
 
                     // Unregisters assemblies that have been registered in Package.Load => Package.LoadAssemblyReferencesForPackage
                     AssemblyRegistry.Register(assembly, AssemblyCommonCategories.Assets);
-
-                    DataSerializerFactory.RegisterSerializationAssembly(assembly);
                 }
                 catch (Exception e)
                 {
@@ -116,9 +114,6 @@ namespace Stride.Assets.Presentation.AssemblyReloading
 
                 // Unregisters assemblies that have been registered in Package.Load => Package.LoadAssemblyReferencesForPackage
                 AssemblyRegistry.Unregister(assembly);
-
-                // Unload binary serialization
-                DataSerializerFactory.UnregisterSerializationAssembly(assembly);
 
                 // Unload assembly
                 assemblyContainer.UnloadAssembly(assembly);

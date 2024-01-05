@@ -249,7 +249,7 @@ namespace Stride.Updater
                             state.ParseElementEnd++;
 
                             // Try to resolve using alias first, then full assembly registry using assembly qualified name
-                            var type = DataSerializerFactory.GetTypeFromAlias(typeName) ?? AssemblyRegistry.GetType(typeName);
+                            var type = AssemblyRegistry.GetTypeFromAlias(typeName) ?? AssemblyRegistry.GetType(typeName);
                             if (type == null)
                             {
                                 throw new InvalidOperationException($"Could not resolve type {typeName}");

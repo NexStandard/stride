@@ -2,8 +2,11 @@
 // Distributed under the MIT license. See the LICENSE.md file in the project root for more information.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Stride.Core.Annotations;
+using Stride.Core.Reflection;
 using Stride.Core.Storage;
+using static Stride.Core.Storage.ObjectId;
 
 namespace Stride.Core.Serialization
 {
@@ -97,7 +100,7 @@ namespace Stride.Core.Serialization
         private void Initialize()
         {
             invalidated = true;
-            DataSerializerFactory.RegisterSerializerSelector(this);
+            AssemblyRegistry.NewDataSerializerFactory.RegisterSerializerSelector(this);
             UpdateDataSerializers();
         }
 
@@ -202,7 +205,7 @@ namespace Stride.Core.Serialization
             if (dataSerializer.SerializationTypeId == ObjectId.Empty)
             {
                 // Need to generate serialization type id
-                var typeName = dataSerializer.SerializationType.FullName;
+                var typeName = dataSerializer.SerializationType.AssemblyQualifiedName;
                 dataSerializer.SerializationTypeId = ObjectId.FromBytes(System.Text.Encoding.UTF8.GetBytes(typeName));
             }
         }
@@ -221,6 +224,7 @@ namespace Stride.Core.Serialization
         internal void Invalidate()
         {
             invalidated = true;
+            UpdateDataSerializers();
         }
 
         private void UpdateDataSerializers()
@@ -235,29 +239,21 @@ namespace Stride.Core.Serialization
 
                 int capturedVersion;
 
-                lock (DataSerializerFactory.Lock)
-                {
+
                     foreach (var profile in profiles)
                     {
                         Dictionary<Type, AssemblySerializerEntry> serializersPerProfile;
-                        if (DataSerializerFactory.DataSerializersPerProfile.TryGetValue(profile, out serializersPerProfile))
-                        {
-                            foreach (var serializer in serializersPerProfile)
+
+                            foreach (var serializer in AssemblyRegistry.NewDataSerializerFactory.FindSerializersPerProfile(profile))
                             {
                                 combinedSerializers[serializer.Key] = serializer.Value;
                             }
-                        }
                     }
 
                     // Due to multithreading, maybe the current version is already that one, or better
                     // In this case, we can stop right there
-                    capturedVersion = DataSerializerFactory.Version;
-                    if (dataSerializerFactoryVersion >= capturedVersion)
-                    {
-                        invalidated = false;
-                        return;
-                    }
-                }
+                    invalidated = true;
+                
 
                 // Create new list of serializers (it will create new ones, and remove unused ones)
                 foreach (var serializer in combinedSerializers)
@@ -284,14 +280,12 @@ namespace Stride.Core.Serialization
                 lock (@lock)
                 {
                     // Due to multithreading, make sure we really still need to update
-                    if (dataSerializerFactoryVersion < capturedVersion)
-                    {
-                        dataSerializerFactoryVersion = capturedVersion;
+
                         dataSerializersByType = newDataSerializersByType;
                         dataSerializersByTypeId = newDataSerializersByTypeId;
-                    }
+                    
 
-                    invalidated = false;
+                    invalidated = true;
                 }
             }
         }

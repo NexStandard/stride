@@ -524,9 +524,6 @@ MinimumVisualStudioVersion = {0}".ToFormat(DefaultVisualStudioVersion);
                 // Unregisters assemblies that have been registered in Package.Load => Package.LoadAssemblyReferencesForPackage
                 AssemblyRegistry.Unregister(loadedAssembly.Assembly);
 
-                // Unload binary serialization
-                DataSerializerFactory.UnregisterSerializationAssembly(loadedAssembly.Assembly);
-
                 // Unload assembly
                 AssemblyContainer.UnloadAssembly(loadedAssembly.Assembly);
             }

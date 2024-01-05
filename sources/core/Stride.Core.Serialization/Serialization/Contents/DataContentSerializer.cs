@@ -2,6 +2,7 @@
 // Distributed under the MIT license. See the LICENSE.md file in the project root for more information.
 #pragma warning disable SA1402 // File may only contain a single class
 using System;
+using Stride.Core.Reflection;
 
 namespace Stride.Core.Serialization.Contents
 {
@@ -30,7 +31,7 @@ namespace Stride.Core.Serialization.Contents
             // However, we would like to serialize the actual type here
             if (dataSerializer == null)
             {
-                var dataSerializerType = DataSerializerFactory.GetSerializer("Default", typeof(T)).SerializerType;
+                var dataSerializerType = AssemblyRegistry.NewDataSerializerFactory.GetSerializer("Default", typeof(T)).SerializerType;
                 if (dataSerializerType == null)
                     throw new InvalidOperationException($"Could not find a serializer for type {typeof(T)}");
                 dataSerializer = (DataSerializer<T>)Activator.CreateInstance(dataSerializerType);

@@ -1120,7 +1120,7 @@ namespace Stride.Core.Serialization
         public override void Serialize(ref T obj, ArchiveMode mode, SerializationStream stream)
         {
             var context = stream.Context;
-
+            context.SerializerSelector.Invalidate();
 
             // Serialize either with dataSerializer if obj is really of type T, otherwise look for appropriate serializer.
             SerializeClassFlags flags;

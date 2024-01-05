@@ -7,9 +7,12 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using Stride.Core.Annotations;
+using Stride.Core.Extensions;
 using Stride.Core.Reflection;
 using Stride.Core.Storage;
+using static Stride.Core.Serialization.AssemblySerializers;
 
 namespace Stride.Core.Serialization
 {
@@ -56,6 +59,7 @@ namespace Stride.Core.Serialization
             Modules = new List<Module>();
             Profiles = new Dictionary<string, AssemblySerializersPerProfile>();
             DataContractAliases = new List<DataContractAlias>();
+
         }
 
         public Assembly Assembly { get; }
@@ -89,170 +93,38 @@ namespace Stride.Core.Serialization
             }
         }
     }
-
-    public static class DataSerializerFactory
+    interface IMappable<T>
     {
-        internal static object Lock = new object();
-        internal static int Version;
+        internal T Find(string criteria);
+    }
+    class DataContractMapper : IMappable<Type>
+    {
+        Dictionary<string, Type> aliasTypeMap = new();
+        public AssemblySerializers BoundAssemblySerializer { get; }
+        public DataContractMapper(AssemblySerializers assemblySerializers)
+        {
+            BoundAssemblySerializer = assemblySerializers;
+            foreach (var alias in assemblySerializers.DataContractAliases)
+            {
+                if (aliasTypeMap.ContainsKey(alias.Name))
+                    throw new Exception(BoundAssemblySerializer.Assembly.FullName + "Contains allready that alias");
+                aliasTypeMap.Add(alias.Name, alias.Type);
+            }
+        }
+        public Type Find(string alias)
+        {
+            aliasTypeMap.TryGetValue(alias, out var type);
+            return type;
+        }
 
-        // List of all the factories
-        private static readonly List<WeakReference<SerializerSelector>> SerializerSelectors = new List<WeakReference<SerializerSelector>>();
-
-        // List of registered assemblies
-        private static readonly List<AssemblySerializers> AssemblySerializers = new List<AssemblySerializers>();
-
-        private static readonly Dictionary<Assembly, AssemblySerializers> AvailableAssemblySerializers = new Dictionary<Assembly, AssemblySerializers>();
-
-        // List of serializers per profile
+    }
+    class SerializerMap : IMappable<Dictionary<Type,AssemblySerializerEntry>>
+    {
+        public AssemblySerializers BoundAssemblySerializer { get; }
         internal static readonly Dictionary<string, Dictionary<Type, AssemblySerializerEntry>> DataSerializersPerProfile = new Dictionary<string, Dictionary<Type, AssemblySerializerEntry>>();
 
-        private static readonly Dictionary<string, Type> DataContractAliasMapping = new Dictionary<string, Type>();
-
-        public static void RegisterSerializerSelector(SerializerSelector serializerSelector)
+        public SerializerMap(AssemblySerializers assemblySerializers)
         {
-            SerializerSelectors.Add(new WeakReference<SerializerSelector>(serializerSelector));
-        }
-
-        public static AssemblySerializerEntry GetSerializer([NotNull] string profile, Type type)
-        {
-            lock (Lock)
-            {
-                Dictionary<Type, AssemblySerializerEntry> serializers;
-                AssemblySerializerEntry assemblySerializerEntry;
-                if (!DataSerializersPerProfile.TryGetValue(profile, out serializers) || !serializers.TryGetValue(type, out assemblySerializerEntry))
-                    return default(AssemblySerializerEntry);
-
-                return assemblySerializerEntry;
-            }
-        }
-
-        [CanBeNull]
-        internal static Type GetTypeFromAlias([NotNull] string alias)
-        {
-            lock (Lock)
-            {
-                Type type;
-                DataContractAliasMapping.TryGetValue(alias, out type);
-                return type;
-            }
-        }
-
-        public static void RegisterSerializationAssembly([NotNull] AssemblySerializers assemblySerializers)
-        {
-            lock (Lock)
-            {
-                // Register it (so that we can get it back if unregistered)
-                if (!AvailableAssemblySerializers.ContainsKey(assemblySerializers.Assembly))
-                    AvailableAssemblySerializers.Add(assemblySerializers.Assembly, assemblySerializers);
-
-                // Check if already loaded
-                if (AssemblySerializers.Contains(assemblySerializers))
-                    return;
-
-                // Update existing SerializerSelector
-                AssemblySerializers.Add(assemblySerializers);
-            }
-
-            // Run module ctor
-            foreach (var module in assemblySerializers.Modules)
-            {
-                ModuleRuntimeHelpers.RunModuleConstructor(module);
-            }
-
-            lock (Lock)
-            {
-                RegisterSerializers(assemblySerializers);
-
-                ++Version;
-
-                // Invalidate each serializer selector (to force them to rebuild combined list of serializers)
-                foreach (var weakSerializerSelector in SerializerSelectors)
-                {
-                    SerializerSelector serializerSelector;
-                    if (weakSerializerSelector.TryGetTarget(out serializerSelector))
-                    {
-                        serializerSelector.Invalidate();
-                    }
-                }
-            }
-        }
-
-        public static void RegisterSerializationAssembly([NotNull] Assembly assembly)
-        {
-            lock (Lock)
-            {
-                AssemblySerializers assemblySerializers;
-                if (AvailableAssemblySerializers.TryGetValue(assembly, out assemblySerializers))
-                    RegisterSerializationAssembly(assemblySerializers);
-            }
-        }
-
-        public static void UnregisterSerializationAssembly(Assembly assembly)
-        {
-            lock (Lock)
-            {
-                var removedAssemblySerializer = AssemblySerializers.FirstOrDefault(x => x.Assembly == assembly);
-                if (removedAssemblySerializer == null)
-                    return;
-
-                AssemblySerializers.Remove(removedAssemblySerializer);
-
-                // Unregister data contract aliases
-                foreach (var dataContractAliasEntry in removedAssemblySerializer.DataContractAliases)
-                {
-                    // TODO: Warning, exception or override if collision? (currently exception, easiest since we can remove them without worry when unloading assembly)
-                    DataContractAliasMapping.Remove(dataContractAliasEntry.Name);
-                }
-
-                // Rebuild serializer list
-                // TODO: For now, we simply reregister all assemblies one-by-one, but it can easily be improved if it proves to be unefficient (for now it shouldn't happen often so probably not a big deal)
-                DataSerializersPerProfile.Clear();
-                DataContractAliasMapping.Clear();
-
-                foreach (var assemblySerializer in AssemblySerializers)
-                {
-                    RegisterSerializers(assemblySerializer);
-                }
-
-                ++Version;
-
-                foreach (var weakSerializerSelector in SerializerSelectors)
-                {
-                    SerializerSelector serializerSelector;
-                    if (weakSerializerSelector.TryGetTarget(out serializerSelector))
-                    {
-                        serializerSelector.Invalidate();
-                    }
-                }
-            }
-        }
-
-        public static AssemblySerializers GetAssemblySerializers([NotNull] Assembly assembly)
-        {
-            lock (Lock)
-            {
-                AssemblySerializers assemblySerializers;
-                AvailableAssemblySerializers.TryGetValue(assembly, out assemblySerializers);
-                return assemblySerializers;
-            }
-        }
-
-        private static void RegisterSerializers([NotNull] AssemblySerializers assemblySerializers)
-        {
-            // Register data contract aliases
-            foreach (var dataContractAliasEntry in assemblySerializers.DataContractAliases)
-            {
-                try
-                {
-                    // TODO: Warning, exception or override if collision? (currently exception)
-                    DataContractAliasMapping.Add(dataContractAliasEntry.Name, dataContractAliasEntry.Type);
-                }
-                catch (Exception)
-                {
-                    throw new InvalidOperationException($"Two different classes have the same DataContract Alias [{dataContractAliasEntry.Name}]: {dataContractAliasEntry.Type} and {DataContractAliasMapping[dataContractAliasEntry.Name]}");
-                }
-            }
-
             // Register serializers
             foreach (var assemblySerializerPerProfile in assemblySerializers.Profiles)
             {
@@ -273,6 +145,129 @@ namespace Stride.Core.Serialization
                     }
                 }
             }
+        }
+        public Dictionary<Type, AssemblySerializerEntry> Find(string criteria)
+        {
+            if (DataSerializersPerProfile.TryGetValue(criteria, out var assemblySerializer))
+                return assemblySerializer;
+            return null;
+        }
+    }
+
+    public class NewDataSerializerFactory
+    {
+        // List of all the factories
+        private List<WeakReference<SerializerSelector>> SerializerSelectors = new List<WeakReference<SerializerSelector>>();
+       
+        // List of registered assemblies
+        private readonly List<AssemblySerializers> AssemblySerializers = new List<AssemblySerializers>();
+
+        private readonly Dictionary<Assembly, AssemblySerializers> AvailableAssemblySerializers = new Dictionary<Assembly, AssemblySerializers>();
+        private List<DataContractMapper> dataContractMappers = new List<DataContractMapper>();
+        List<SerializerMap> serializerMaps = new List<SerializerMap>();
+
+        // List of serializers per profile
+        internal static readonly Dictionary<string, Dictionary<Type, AssemblySerializerEntry>> DataSerializersPerProfile = new Dictionary<string, Dictionary<Type, AssemblySerializerEntry>>();
+
+        // bruacht noch
+        public AssemblySerializerEntry GetSerializer([NotNull] string profile, Type type)
+        {
+            foreach(var serializer in serializerMaps)
+            {
+                var map = serializer.Find(profile);
+                if (map != null && map.TryGetValue(type, out var assemblySerializer))
+                    return assemblySerializer;
+            }
+            return default;
+        }
+
+        [CanBeNull]
+        internal Type GetTypeFromAlias([NotNull] string alias)
+        {
+            foreach(var map in dataContractMappers)
+            {
+                var serializer = map.Find(alias);
+                if(serializer != null)
+                {
+                    return serializer;
+                }
+            }
+            return null;
+        }
+        public NewDataSerializerFactory()
+        {
+            AssemblyRegistry.FindAll().ForEach(RegisterSerializationAssembly);
+            AssemblyRegistry.AssemblyRegistered += (obj, assembly) => RegisterSerializationAssembly(assembly.Assembly);
+            AssemblyRegistry.AssemblyUnregistered += (obj, assembly) => UnregisterSerializationAssembly(assembly.Assembly);
+        }
+
+        public void RegisterSerializerSelector(SerializerSelector serializerSelector)
+        {
+            SerializerSelectors.Add(new WeakReference<SerializerSelector>(serializerSelector));
+        }
+
+        void UnregisterSerializationAssembly(Assembly assembly)
+        {
+            var removableAssembly = AvailableAssemblySerializers[assembly];
+            AssemblySerializers.Remove(removableAssembly);
+            AvailableAssemblySerializers.Remove(assembly);
+            var mapper = dataContractMappers.First(x => x.BoundAssemblySerializer == removableAssembly);
+            dataContractMappers.Remove(mapper);
+            var serializers = serializerMaps.First(x => x.BoundAssemblySerializer == removableAssembly);
+            serializerMaps.Remove(serializers);
+        }
+
+        void RegisterSerializationAssembly(Assembly assembly)
+        {
+            AssemblySerializers assemblySerializers;
+            if (AvailableAssemblySerializers.TryGetValue(assembly, out assemblySerializers))
+                RegisterSerializationAssembly(assemblySerializers);
+        }
+
+        void RegisterSerializationAssembly([NotNull] AssemblySerializers assemblySerializers)
+        {
+            AvailableAssemblySerializers.Add(assemblySerializers.Assembly, assemblySerializers);
+            AssemblySerializers.Add(assemblySerializers);
+
+            // Run module ctor
+            foreach (var module in assemblySerializers.Modules)
+            {
+                ModuleRuntimeHelpers.RunModuleConstructor(module);
+            }
+
+            dataContractMappers.Add(new DataContractMapper(assemblySerializers));
+            serializerMaps.Add(new SerializerMap(assemblySerializers));
+
+            // Invalidate each serializer selector (to force them to rebuild combined list of serializers)
+            foreach (var weakSerializerSelector in SerializerSelectors)
+            {
+                SerializerSelector serializerSelector;
+                if (weakSerializerSelector.TryGetTarget(out serializerSelector))
+                {
+                    serializerSelector.Invalidate();
+                }
+            }
+        }
+        public AssemblySerializers GetAssemblySerializers([NotNull] Assembly assembly)
+        {
+                AssemblySerializers assemblySerializers;
+                AvailableAssemblySerializers.TryGetValue(assembly, out assemblySerializers);
+                return assemblySerializers;
+        }
+        public IEnumerable<KeyValuePair<Type,AssemblySerializerEntry>> FindSerializersPerProfile(string profile)
+        {
+            foreach (var serializer in serializerMaps)
+            {
+                var map = serializer.Find(profile);
+                if (map is not null)
+                {
+                    foreach (var entry in map)
+                    {
+                        yield return entry;
+                    }
+                }
+            }
+
         }
     }
 }
