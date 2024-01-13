@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFramework>netstandard2.0</TargetFramework>
 		<Description>Code generators for Stride.Core and its dependents</Description>
-    <LangVersion>preview</LangVersion>
+    <LangVersion>latest</LangVersion>
 		<StrideSkipAutoPack>true</StrideSkipAutoPack>
     <Nullable>enable</Nullable>
     <!--<DefineConstants>LAUNCH_DEBUGGER;$(DefineConstants)</DefineConstants>-->
