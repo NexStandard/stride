@@ -63,27 +63,8 @@ namespace Stride.Assets.Presentation.AssetEditors.ScriptEditor
         /// <inheritdoc/>
         public sealed override async Task<bool> Initialize()
         {
-            var projectWatcher = await StrideAssetsViewModel.Instance.Code.ProjectWatcher;
-            RoslynHost = await projectWatcher.RoslynHost;
-            Workspace = await StrideAssetsViewModel.Instance.Code.Workspace;
 
-            Workspace.HostDocumentClosed += WorkspaceHostDocumentClosed;
-
-            if (Asset.DocumentId == null)
-                return false;
-
-            // Open document
-            DocumentId = Workspace.OpenDocument(SourceTextContainer, await Asset.DocumentId,
-                a => Dispatcher.Invoke(() => ProcessDiagnostics?.Invoke(this, a)));
-            //Workspace.TrackDocument(await Asset.DocumentId, OnTextUpdated);
-
-            // Failed? let's close editor right away
-            if (DocumentId == null)
-                return false;
-
-            DocumentOpened?.Invoke(this, EventArgs.Empty);
-
-            return true;
+            return false;
         }
 
         private void WorkspaceHostDocumentClosed(DocumentId documentId)
@@ -106,7 +87,7 @@ namespace Stride.Assets.Presentation.AssetEditors.ScriptEditor
             if (DocumentId != null)
                 Workspace.CloseDocument(DocumentId);
 
-            Workspace.HostDocumentClosed -= WorkspaceHostDocumentClosed;
+            // Workspace.HostDocumentClosed -= WorkspaceHostDocumentClosed;
 
             base.Destroy();
         }

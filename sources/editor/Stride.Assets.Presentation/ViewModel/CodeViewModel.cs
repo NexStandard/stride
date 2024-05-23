@@ -41,7 +41,7 @@ namespace Stride.Assets.Presentation.ViewModel
         public const int MaximumEditorFontSize = 72;
 
         private readonly TaskCompletionSource<ProjectWatcher> projectWatcherCompletion = new();
-        private readonly TaskCompletionSource<RoslynWorkspace> workspaceCompletion = new();
+        // private readonly TaskCompletionSource<RoslynWorkspace> workspaceCompletion = new();
         private int editorFontSize = ScriptEditorSettings.FontSize.GetValue(); // default size
 
         private readonly Brush keywordBrush;
@@ -50,84 +50,7 @@ namespace Stride.Assets.Presentation.ViewModel
         public CodeViewModel(StrideAssetsViewModel strideAssetsViewModel)
             : base(strideAssetsViewModel.SafeArgument(nameof(strideAssetsViewModel)).ServiceProvider)
         {
-            _ = InitializeAsync(strideAssetsViewModel);
 
-            // Apply syntax highlighting for tooltips
-            keywordBrush = new SolidColorBrush(ClassificationHighlightColorsDark.KeywordColor);
-            typeBrush = new SolidColorBrush(ClassificationHighlightColorsDark.TypeColor);
-            keywordBrush.Freeze();
-            typeBrush.Freeze();
-
-            // TODO: Update with latest RoslynPad
-            //SymbolDisplayPartExtensions.StyleRunFromSymbolDisplayPartKind = StyleRunFromSymbolDisplayPartKind;
-            //SymbolDisplayPartExtensions.StyleRunFromTextTag = StyleRunFromTextTag;
-        }
-
-        private async Task InitializeAsync(StrideAssetsViewModel strideAssetsViewModel)
-        {
-            var projectWatcher = new ProjectWatcher(strideAssetsViewModel.Session);
-            await projectWatcher.Initialize();
-            var workspace = (await projectWatcher.RoslynHost).Workspace;
-
-            // Load and update roslyn workspace with latest compiled version
-            foreach (var trackedAssembly in projectWatcher.TrackedAssemblies)
-            {
-                if (trackedAssembly.Project is { } project)
-                    workspace.AddOrUpdateProject(project);
-            }
-            projectWatcher.TrackedAssemblies.CollectionChanged += TrackedAssembliesCollectionChanged;
-
-            _ = UpdateProjects(projectWatcher, workspace, strideAssetsViewModel);
-
-            projectWatcherCompletion.SetResult(projectWatcher);
-            workspaceCompletion.SetResult(workspace);
-
-            void TrackedAssembliesCollectionChanged(object sender, Core.Collections.TrackingCollectionChangedEventArgs e)
-            {
-                if (((ProjectWatcher.TrackedAssembly)e.Item).Project is { } project)
-                {
-                    switch (e.Action)
-                    {
-                        case NotifyCollectionChangedAction.Add:
-                            {
-                                workspace.AddOrUpdateProject(project);
-                                break;
-                            }
-                        case NotifyCollectionChangedAction.Remove:
-                            {
-                                workspace.RemoveProject(project.Id);
-                                break;
-                            }
-                    }
-                }
-            }
-        }
-
-        private async Task UpdateProjects(ProjectWatcher projectWatcher, RoslynWorkspace workspace, StrideAssetsViewModel strideAssetsViewModel)
-        {
-            await foreach (var events in projectWatcher.BatchChange)
-            {
-                await Dispatcher.InvokeAsync(async () =>
-                {
-                    // Update projects
-                    foreach (var e in events.Where(x => x.ChangeType == AssemblyChangeType.Project))
-                    {
-                        var project = e.Project;
-                        if (project != null)
-                        {
-                            await ReloadProject(strideAssetsViewModel.Session, project);
-                        }
-                    }
-
-                    // Update files
-                    foreach (var e in events.Where(x => x.ChangeType == AssemblyChangeType.Source))
-                    {
-                        var documentId = workspace.CurrentSolution.GetDocumentIdsWithFilePath(e.ChangedFile).FirstOrDefault();
-                        if (documentId != null)
-                            workspace.HostDocumentTextLoaderChanged(documentId, new FileTextLoader(e.ChangedFile, null));
-                    }
-                });
-            }
         }
 
         /// <summary>
@@ -135,87 +58,12 @@ namespace Stride.Assets.Presentation.ViewModel
         /// </summary>
         public Task<ProjectWatcher> ProjectWatcher => projectWatcherCompletion.Task;
 
-        /// <summary>
-        /// Gets the roslyn workspace; it is created asynchronously.
-        /// </summary>
-        public Task<RoslynWorkspace> Workspace => workspaceCompletion.Task;
-
-        /// <summary>
-        /// The editor current font size. It will be saved in the settings.
-        /// </summary>
-        public int EditorFontSize
-        {
-            get { return editorFontSize; }
-            set
-            {
-                if (value < MinimumEditorFontSize || value > MaximumEditorFontSize) return;
-
-                if (SetValue(ref editorFontSize, value))
-                {
-                    ScriptEditorSettings.FontSize.SetValue(editorFontSize);
-                    ScriptEditorSettings.Save();
-                }
-            }
-        }
-
         /// <inheritdoc/>
         public override void Destroy()
         {
             EnsureNotDestroyed(nameof(CodeViewModel));
             Cleanup();
             base.Destroy();
-        }
-
-        /// <summary>
-        /// Reloads a project when a .csproj files changes on the hard drive.
-        /// </summary>
-        /// <remarks>
-        /// In case of destructive changes (i.e. dirty files that disappeared), user confirmation will be asked to proceed.
-        /// </remarks>
-        private async Task ReloadProject(SessionViewModel session, Project project)
-        {
-            var workspace = await Workspace;
-
-            // Get assets and namespace from csproj
-            // TODO: Use roslyn list of files? not sure we could have non .cs files easily though
-            // However, if we load from file, it might not be in sync with Roslyn state
-            string projectNamespace;
-            var projectFiles = Package.FindAssetsInProject(project.FilePath, out projectNamespace);
-
-            // Find associated ProjectViewModel
-            var projectViewModel = session.LocalPackages.FirstOrDefault(y => y.Name == project.Name) as ProjectViewModel;
-            if (projectViewModel == null)
-                return;
-
-            // List current assets
-            var projectAssets = new List<AssetViewModel>();
-            var isProjectDirty = GetAssets(projectViewModel.Code, projectAssets);
-
-            // Project is dirty, ask user if he really wants to auto-reload
-            if (isProjectDirty)
-            {
-                var dialogResult = projectViewModel.Session.Dialogs.BlockingMessageBox(
-                    string.Format(
-                        Tr._p("Message", "Game Studio can't auto-reload the project file {0} because you have local changes such as new or deleted scripts.\r\n\r\nClick OK to keep reloading or Cancel to keep the current version."),
-                        Path.GetFileName(project.FilePath)), MessageBoxButton.OKCancel);
-                if (dialogResult == MessageBoxResult.Cancel)
-                    return;
-            }
-
-            // Remove deleted assets (and ask user if he really wants to proceed in case some of them were dirty?)
-            bool continueReload = await DeleteRemovedProjectAssets(projectViewModel, projectAssets, project, projectFiles);
-            if (!continueReload)
-                return;
-
-            // Update Roslyn project
-            workspace.AddOrUpdateProject(project);
-
-            // Add new assets
-            AddNewProjectAssets(projectViewModel, projectAssets, project, projectFiles);
-
-            // Mark project as non dirty
-            // TODO: Does that work properly with Undo/Redo?
-            UpdateDirtiness(projectViewModel.Code, false);
         }
 
         /// <summary>

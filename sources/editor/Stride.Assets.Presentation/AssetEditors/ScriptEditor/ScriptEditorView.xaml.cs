@@ -34,9 +34,11 @@ namespace Stride.Assets.Presentation.AssetEditors.ScriptEditor
         public async Task<bool> InitializeEditor(IAssetEditorViewModel editor)
         {
             this.editor = (ScriptEditorViewModel)editor;
+            editor.Destroy();
+            return false;
             if (!await editor.Initialize())
             {
-                editor.Destroy();
+                
                 editorInitializationNotifier.SetResult();
                 return false;
             }
@@ -56,11 +58,7 @@ namespace Stride.Assets.Presentation.AssetEditors.ScriptEditor
 
         private void OnEditorMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
-            {
-                editor.Code.EditorFontSize += e.Delta > 0 ? 1 : -1;
-                e.Handled = true;
-            }
+           
         }
 
         private void Editor_ProcessDiagnostics(object sender, DiagnosticsUpdatedArgs e)

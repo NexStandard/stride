@@ -37,16 +37,6 @@
   <SolidColorBrush x:Key="{ComponentResourceKey {x:Type avalonedit:DropDownButton}, ActiveBorder}" Color="#FF333333"/>
   <SolidColorBrush x:Key="{ComponentResourceKey {x:Type avalonedit:DropDownButton}, ActiveBackground}" Color="#FF9D9D9D"/>
 
-  <Style TargetType="scriptEditor:ScriptTextEditor">
-    <Setter Property="FontFamily" Value="Consolas"/>
-    <Setter Property="Template">
-      <Setter.Value>
-        <ControlTemplate TargetType="scriptEditor:ScriptTextEditor">
-          <scriptEditor:SimpleCodeTextEditor x:Name="PART_CodeEditor" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" ContextActionsIcon="{StaticResource Bulb}" />
-        </ControlTemplate>
-      </Setter.Value>
-    </Setter>
-  </Style>
 
   <HierarchicalDataTemplate DataType="{x:Type codeFixes:CodeFixCollection}" ItemsSource="{Binding Fixes, Mode=OneTime}">
     <TextBlock Text="{Binding Provider, Mode=OneTime}" />
