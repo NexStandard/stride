@@ -106,7 +106,7 @@ namespace Stride.Assets.Presentation.AssetEditors.ScriptEditor
             if (DocumentId != null)
                 Workspace.CloseDocument(DocumentId);
 
-            Workspace.HostDocumentClosed -= WorkspaceHostDocumentClosed;
+            // Workspace.HostDocumentClosed -= WorkspaceHostDocumentClosed;
 
             base.Destroy();
         }

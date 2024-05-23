@@ -34,6 +34,8 @@ namespace Stride.Assets.Presentation.AssetEditors.ScriptEditor
         public async Task<bool> InitializeEditor(IAssetEditorViewModel editor)
         {
             this.editor = (ScriptEditorViewModel)editor;
+            editor.Destroy();
+            return false;
             if (!await editor.Initialize())
             {
                 editor.Destroy();
