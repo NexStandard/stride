@@ -176,10 +176,8 @@ namespace Stride.Engine.NextGen
         static void Main(string[] args)
         {
             // Profiler.EnableAll();
-            using (var game = new NextGenTest1())
-            {
-                game.Run();
-            }
+            using var game = new NextGenTest1();
+            game.Run();
         }
 
         /// <summary>

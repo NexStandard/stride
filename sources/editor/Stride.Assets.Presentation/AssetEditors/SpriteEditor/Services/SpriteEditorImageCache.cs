@@ -35,10 +35,8 @@ namespace Stride.Assets.Presentation.AssetEditors.SpriteEditor.Services
 
             var pixelPoint = new Int2((int)initialPoint.X, (int)initialPoint.Y);
 
-            using (var texTool = new TextureTool())
-            {
-                return useTransparency ? texTool.FindSpriteRegion(image, pixelPoint) : texTool.FindSpriteRegion(image, pixelPoint, maskColor, 0x00ffffff);
-            }
+            using var texTool = new TextureTool();
+            return useTransparency ? texTool.FindSpriteRegion(image, pixelPoint) : texTool.FindSpriteRegion(image, pixelPoint, maskColor, 0x00ffffff);
         }
 
         public Size2? GetPixelSize(UFile source)
@@ -58,10 +56,8 @@ namespace Stride.Assets.Presentation.AssetEditors.SpriteEditor.Services
 
             var pixelPoint = new Int2((int)initialPoint.X, (int)initialPoint.Y);
 
-            using (var texTool = new TextureTool())
-            {
-                return texTool.PickColor(image, pixelPoint);
-            }
+            using var texTool = new TextureTool();
+            return texTool.PickColor(image, pixelPoint);
         }
 
         public BitmapImage RetrieveImage(UFile filePath)
@@ -86,38 +82,36 @@ namespace Stride.Assets.Presentation.AssetEditors.SpriteEditor.Services
 
             try
             {
-                using (var stream = new MemoryStream())
+                using var stream = new MemoryStream();
+                TexImage texImage;
+                using (var texTool = new TextureTool())
                 {
-                    TexImage texImage;
-                    using (var texTool = new TextureTool())
-                    {
-                        texImage = texTool.Load(filePath, false);
-                        texTool.Decompress(texImage, texImage.Format.IsSRgb());
-                        if (texImage.Format == PixelFormat.R16G16B16A16_UNorm)
-                            texTool.Convert(texImage, PixelFormat.R8G8B8A8_UNorm);
-                        var image = texTool.ConvertToStrideImage(texImage);
-                        image.Save(stream, ImageFileType.Png);
-                    }
-
-                    stream.Position = 0;
-
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.StreamSource = stream;
-                    //bitmap.UriSource = new Uri(filePath);
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    // This flag is only used when loaded via UriSource, and make it crash when loaded via StreamSource
-                    //bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                    bitmap.EndInit();
-                    bitmap.Freeze();
-
-                    // Update the cache
-                    cache.Add(Tuple.Create(filePath, lastWrite, texImage, bitmap));
-                    if (cache.Count == CacheSize)
-                        cache.RemoveAt(0);
-
-                    return bitmap;
+                    texImage = texTool.Load(filePath, false);
+                    texTool.Decompress(texImage, texImage.Format.IsSRgb());
+                    if (texImage.Format == PixelFormat.R16G16B16A16_UNorm)
+                        texTool.Convert(texImage, PixelFormat.R8G8B8A8_UNorm);
+                    var image = texTool.ConvertToStrideImage(texImage);
+                    image.Save(stream, ImageFileType.Png);
                 }
+
+                stream.Position = 0;
+
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.StreamSource = stream;
+                //bitmap.UriSource = new Uri(filePath);
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                // This flag is only used when loaded via UriSource, and make it crash when loaded via StreamSource
+                //bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                bitmap.EndInit();
+                bitmap.Freeze();
+
+                // Update the cache
+                cache.Add(Tuple.Create(filePath, lastWrite, texImage, bitmap));
+                if (cache.Count == CacheSize)
+                    cache.RemoveAt(0);
+
+                return bitmap;
             }
             catch (InvalidOperationException)
             {

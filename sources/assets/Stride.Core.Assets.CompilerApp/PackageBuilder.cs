@@ -335,73 +335,71 @@ namespace Stride.Core.Assets.CompilerApp
             VirtualFileSystem.CreateDirectory(VirtualFileSystem.ApplicationDatabasePath);
 
             // Open ServiceWire Client Channel
-            using (var client = new NpClient<IProcessBuilderRemote>(new NpEndPoint(builderOptions.SlavePipe), new StrideServiceWireSerializer()))
+            using var client = new NpClient<IProcessBuilderRemote>(new NpEndPoint(builderOptions.SlavePipe), new StrideServiceWireSerializer());
+            RegisterRemoteLogger(client);
+
+            // Make sure to laod all assemblies containing serializers
+            // TODO: Review how costly it is to do so, and possibily find a way to restrict what needs to be loaded (i.e. only app plugins?)
+            foreach (var assemblyLocation in client.Proxy.GetAssemblyContainerLoadedAssemblies())
             {
-                RegisterRemoteLogger(client);
+                AssemblyContainer.Default.LoadAssemblyFromPath(assemblyLocation, builderOptions.Logger);
+            }
 
-                // Make sure to laod all assemblies containing serializers
-                // TODO: Review how costly it is to do so, and possibily find a way to restrict what needs to be loaded (i.e. only app plugins?)
-                foreach (var assemblyLocation in client.Proxy.GetAssemblyContainerLoadedAssemblies())
+            // Create scheduler
+            var scheduler = new Scheduler();
+
+            var status = ResultStatus.NotProcessed;
+
+            // Schedule command
+            string buildPath = builderOptions.BuildDirectory;
+
+            Builder.OpenObjectDatabase(buildPath, VirtualFileSystem.ApplicationDatabaseIndexName);
+
+            var logger = builderOptions.Logger;
+            MicroThread microthread = scheduler.Add(async () =>
+            {
+                // Deserialize command and parameters
+                Command command = client.Proxy.GetCommandToExecute();
+
+                // Run command
+                var inputHashes = FileVersionTracker.GetDefault();
+                var builderContext = new BuilderContext(inputHashes, null);
+
+                var commandContext = new RemoteCommandContext(client.Proxy, command, builderContext, logger);
+                MicrothreadLocalDatabases.MountDatabase(commandContext.GetOutputObjectsGroups());
+                command.PreCommand(commandContext);
+                status = await command.DoCommand(commandContext);
+                command.PostCommand(commandContext, status);
+
+                // Returns result to master builder
+                client.Proxy.RegisterResult(commandContext.ResultEntry);
+            });
+
+            while (true)
+            {
+                scheduler.Run();
+
+                // Exit loop if no more micro threads
+                lock (scheduler.MicroThreads)
                 {
-                    AssemblyContainer.Default.LoadAssemblyFromPath(assemblyLocation, builderOptions.Logger);
+                    if (!scheduler.MicroThreads.Any())
+                        break;
                 }
 
-                // Create scheduler
-                var scheduler = new Scheduler();
+                Thread.Sleep(0);
+            }
 
-                var status = ResultStatus.NotProcessed;
-
-                // Schedule command
-                string buildPath = builderOptions.BuildDirectory;
-
-                Builder.OpenObjectDatabase(buildPath, VirtualFileSystem.ApplicationDatabaseIndexName);
-
-                var logger = builderOptions.Logger;
-                MicroThread microthread = scheduler.Add(async () =>
-                {
-                    // Deserialize command and parameters
-                    Command command = client.Proxy.GetCommandToExecute();
-
-                    // Run command
-                    var inputHashes = FileVersionTracker.GetDefault();
-                    var builderContext = new BuilderContext(inputHashes, null);
-
-                    var commandContext = new RemoteCommandContext(client.Proxy, command, builderContext, logger);
-                    MicrothreadLocalDatabases.MountDatabase(commandContext.GetOutputObjectsGroups());
-                    command.PreCommand(commandContext);
-                    status = await command.DoCommand(commandContext);
-                    command.PostCommand(commandContext, status);
-
-                    // Returns result to master builder
-                    client.Proxy.RegisterResult(commandContext.ResultEntry);
-                });
-
-                while (true)
-                {
-                    scheduler.Run();
-
-                    // Exit loop if no more micro threads
-                    lock (scheduler.MicroThreads)
-                    {
-                        if (!scheduler.MicroThreads.Any())
-                            break;
-                    }
-
-                    Thread.Sleep(0);
-                }
-
-                // Rethrow any exception that happened in microthread
-                if (microthread.Exception != null)
-                {
-                    builderOptions.Logger.Fatal(microthread.Exception.ToString());
-                    return BuildResultCode.BuildError;
-                }
-
-                if (status == ResultStatus.Successful || status == ResultStatus.NotTriggeredWasSuccessful)
-                    return BuildResultCode.Successful;
-
+            // Rethrow any exception that happened in microthread
+            if (microthread.Exception != null)
+            {
+                builderOptions.Logger.Fatal(microthread.Exception.ToString());
                 return BuildResultCode.BuildError;
             }
+
+            if (status == ResultStatus.Successful || status == ResultStatus.NotTriggeredWasSuccessful)
+                return BuildResultCode.Successful;
+
+            return BuildResultCode.BuildError;
         }
 
         /// <summary>

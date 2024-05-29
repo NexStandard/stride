@@ -147,52 +147,50 @@ namespace Stride.Assets.SpriteFont.Compiler
                     renderingMode = RenderingMode.Aliased;
                 }
 
-                using (var runAnalysis = new GlyphRunAnalysis(factory,
+                using var runAnalysis = new GlyphRunAnalysis(factory,
                     glyphRun,
                     1.0f,
                     matrix,
                     renderingMode,
                     MeasuringMode.Natural,
                     0.0f,
-                    0.0f))
+                    0.0f);
+
+                var bounds = new RawRectangle(0, 0, pixelWidth, pixelHeight);
+                bitmap = new Bitmap(pixelWidth, pixelHeight, PixelFormat.Format32bppArgb);
+
+                if (renderingMode == RenderingMode.Aliased)
                 {
 
-                    var bounds = new RawRectangle(0, 0, pixelWidth, pixelHeight);
-                    bitmap = new Bitmap(pixelWidth, pixelHeight, PixelFormat.Format32bppArgb);
-
-                    if (renderingMode == RenderingMode.Aliased)
+                    var texture = new byte[pixelWidth * pixelHeight];
+                    runAnalysis.CreateAlphaTexture(TextureType.Aliased1x1, bounds, texture, texture.Length);
+                    for (int y = 0; y < pixelHeight; y++)
                     {
-
-                        var texture = new byte[pixelWidth * pixelHeight];
-                        runAnalysis.CreateAlphaTexture(TextureType.Aliased1x1, bounds, texture, texture.Length);
-                        for (int y = 0; y < pixelHeight; y++)
+                        for (int x = 0; x < pixelWidth; x++)
                         {
-                            for (int x = 0; x < pixelWidth; x++)
-                            {
-                                int pixelX = y * pixelWidth + x;
-                                var grey = texture[pixelX];
-                                var color = Color.FromArgb(grey, grey, grey);
+                            int pixelX = y * pixelWidth + x;
+                            var grey = texture[pixelX];
+                            var color = Color.FromArgb(grey, grey, grey);
 
-                                bitmap.SetPixel(x, y, color);
-                            }
+                            bitmap.SetPixel(x, y, color);
                         }
                     }
-                    else
+                }
+                else
+                {
+                    var texture = new byte[pixelWidth * pixelHeight * 3];
+                    runAnalysis.CreateAlphaTexture(TextureType.Cleartype3x1, bounds, texture, texture.Length);
+                    for (int y = 0; y < pixelHeight; y++)
                     {
-                        var texture = new byte[pixelWidth * pixelHeight * 3];
-                        runAnalysis.CreateAlphaTexture(TextureType.Cleartype3x1, bounds, texture, texture.Length);
-                        for (int y = 0; y < pixelHeight; y++)
+                        for (int x = 0; x < pixelWidth; x++)
                         {
-                            for (int x = 0; x < pixelWidth; x++)
-                            {
-                                int pixelX = (y * pixelWidth + x) * 3;
-                                var red = LinearToGamma(texture[pixelX]);
-                                var green = LinearToGamma(texture[pixelX + 1]);
-                                var blue = LinearToGamma(texture[pixelX + 2]);
-                                var color = Color.FromArgb(red, green, blue);
+                            int pixelX = (y * pixelWidth + x) * 3;
+                            var red = LinearToGamma(texture[pixelX]);
+                            var green = LinearToGamma(texture[pixelX + 1]);
+                            var blue = LinearToGamma(texture[pixelX + 2]);
+                            var color = Color.FromArgb(red, green, blue);
 
-                                bitmap.SetPixel(x, y, color);
-                            }
+                            bitmap.SetPixel(x, y, color);
                         }
                     }
                 }

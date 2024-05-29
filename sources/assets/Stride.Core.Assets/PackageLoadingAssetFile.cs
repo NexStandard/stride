@@ -122,11 +122,9 @@ namespace Stride.Core.Assets
             public void Dispose()
             {
                 // Save asset back to AssetContent
-                using (var memoryStream = new MemoryStream())
-                {
-                    WriteTo(memoryStream, AssetYamlSerializer.Default.GetSerializerSettings());
-                    packageLoadingAssetFile.AssetContent = memoryStream.ToArray();
-                }
+                using var memoryStream = new MemoryStream();
+                WriteTo(memoryStream, AssetYamlSerializer.Default.GetSerializerSettings());
+                packageLoadingAssetFile.AssetContent = memoryStream.ToArray();
             }
 
             private static Stream GetSafeStream(PackageLoadingAssetFile packageLoadingAssetFile)

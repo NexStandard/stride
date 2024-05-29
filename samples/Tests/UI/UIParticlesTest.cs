@@ -23,37 +23,33 @@ namespace Stride.Samples.Tests
         [Fact]
         public void TestLaunch()
         {
-            using (var game = new GameTestingClient(Path, SampleTestsData.TestPlatform))
-            {
-                game.Wait(TimeSpan.FromMilliseconds(2000));
-            }
+            using var game = new GameTestingClient(Path, SampleTestsData.TestPlatform);
+            game.Wait(TimeSpan.FromMilliseconds(2000));
         }
 
         [Fact]
         public void TestInputs()
         {
-            using (var game = new GameTestingClient(Path, SampleTestsData.TestPlatform))
-            {
-                game.Wait(TimeSpan.FromMilliseconds(2000));
+            using var game = new GameTestingClient(Path, SampleTestsData.TestPlatform);
+            game.Wait(TimeSpan.FromMilliseconds(2000));
 
-                game.TakeScreenshot();
+            game.TakeScreenshot();
 
-		// TODO Simulate taps
+            // TODO Simulate taps
 
-                game.Tap(new Vector2(179f / 600f, 235f / 600f), TimeSpan.FromMilliseconds(150));
-                game.Wait(TimeSpan.FromMilliseconds(250));
-                game.TakeScreenshot();
+            game.Tap(new Vector2(179f / 600f, 235f / 600f), TimeSpan.FromMilliseconds(150));
+            game.Wait(TimeSpan.FromMilliseconds(250));
+            game.TakeScreenshot();
 
-                game.Tap(new Vector2(360f / 600f, 328f / 600f), TimeSpan.FromMilliseconds(150));
-                game.Wait(TimeSpan.FromMilliseconds(1250));
-                game.TakeScreenshot();
+            game.Tap(new Vector2(360f / 600f, 328f / 600f), TimeSpan.FromMilliseconds(150));
+            game.Wait(TimeSpan.FromMilliseconds(1250));
+            game.TakeScreenshot();
 
-                game.Tap(new Vector2(179f / 600f, 235f / 600f), TimeSpan.FromMilliseconds(150));
-                game.Wait(TimeSpan.FromMilliseconds(250));
-                game.TakeScreenshot();
+            game.Tap(new Vector2(179f / 600f, 235f / 600f), TimeSpan.FromMilliseconds(150));
+            game.Wait(TimeSpan.FromMilliseconds(250));
+            game.TakeScreenshot();
 
-                game.Wait(TimeSpan.FromMilliseconds(2000));
-            }
+            game.Wait(TimeSpan.FromMilliseconds(2000));
         }
     }
 }

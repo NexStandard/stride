@@ -186,18 +186,14 @@ namespace Stride.Core.VisualStudio
                 // If the versions are different, actually write the new version on disk
                 if (newVersion != currentVersion)
                 {
-                    using (var streamWriter = new StreamWriter(solutionPath))
-                    {
-                        streamWriter.Write(newVersion);
-                    }
+                    using var streamWriter = new StreamWriter(solutionPath);
+                    streamWriter.Write(newVersion);
                 }
             }
             else
             {
-                using (var writer = new SolutionWriter(solutionPath))
-                {
-                    writer.WriteSolutionFile(this);
-                }
+                using var writer = new SolutionWriter(solutionPath);
+                writer.WriteSolutionFile(this);
             }
         }
 
@@ -209,12 +205,10 @@ namespace Stride.Core.VisualStudio
         [NotNull]
         public static Solution FromFile(string solutionFullPath)
         {
-            using (var reader = new SolutionReader(solutionFullPath))
-            {
-                var solution = reader.ReadSolutionFile();
-                solution.FullPath = solutionFullPath;
-                return solution;
-            }
+            using var reader = new SolutionReader(solutionFullPath);
+            var solution = reader.ReadSolutionFile();
+            solution.FullPath = solutionFullPath;
+            return solution;
         }
 
         /// <summary>
@@ -226,12 +220,10 @@ namespace Stride.Core.VisualStudio
         [NotNull]
         public static Solution FromStream(string solutionFullPath, [NotNull] Stream stream)
         {
-            using (var reader = new SolutionReader(solutionFullPath, stream))
-            {
-                var solution = reader.ReadSolutionFile();
-                solution.FullPath = solutionFullPath;
-                return solution;
-            }
+            using var reader = new SolutionReader(solutionFullPath, stream);
+            var solution = reader.ReadSolutionFile();
+            solution.FullPath = solutionFullPath;
+            return solution;
         }
     }
 }

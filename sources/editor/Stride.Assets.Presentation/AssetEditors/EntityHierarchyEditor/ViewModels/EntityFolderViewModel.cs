@@ -173,26 +173,24 @@ namespace Stride.Assets.Presentation.AssetEditors.EntityHierarchyEditor.ViewMode
                 return;
             }
 
-            using (var transaction = Editor.UndoRedoService.CreateTransaction())
+            using var transaction = Editor.UndoRedoService.CreateTransaction();
+            // We need to update the name first so that the Path properties is consistent
+            var oldName = name;
+            name = newName;
+
+            foreach (var entity in InnerSubEntities)
             {
-                // We need to update the name first so that the Path properties is consistent
-                var oldName = name;
-                name = newName;
-
-                foreach (var entity in InnerSubEntities)
-                {
-                    var node = Editor.NodeContainer.GetOrCreateNode(entity.EntityDesign);
-                    // In this case, the parent is either the current folder or a subfolder in between
-                    var parent = (EntityFolderViewModel)entity.Parent;
-                    if (parent == null) throw new InvalidOperationException($"{nameof(parent)} cannot be null");
-                    node[nameof(EntityDesign.Folder)].Update(parent.Path);
-                }
-
-                if (Parent == null) throw new InvalidOperationException($"{nameof(Parent)} cannot be null");
-                var operation = new EntityFolderOperation(Asset, EntityFolderOperation.Action.FolderRenamed, Path, oldName, Parent.Owner.Id);
-                Editor.UndoRedoService.PushOperation(operation);
-                Editor.UndoRedoService.SetName(transaction, $"Rename folder '{oldName}' to '{newName}'");
+                var node = Editor.NodeContainer.GetOrCreateNode(entity.EntityDesign);
+                // In this case, the parent is either the current folder or a subfolder in between
+                var parent = (EntityFolderViewModel)entity.Parent;
+                if (parent == null) throw new InvalidOperationException($"{nameof(parent)} cannot be null");
+                node[nameof(EntityDesign.Folder)].Update(parent.Path);
             }
+
+            if (Parent == null) throw new InvalidOperationException($"{nameof(Parent)} cannot be null");
+            var operation = new EntityFolderOperation(Asset, EntityFolderOperation.Action.FolderRenamed, Path, oldName, Parent.Owner.Id);
+            Editor.UndoRedoService.PushOperation(operation);
+            Editor.UndoRedoService.SetName(transaction, $"Rename folder '{oldName}' to '{newName}'");
         }
     }
 }

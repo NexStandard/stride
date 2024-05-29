@@ -199,13 +199,11 @@ Objects:
 
         private static string SerializeAsString(object instance)
         {
-            using (var stream = new MemoryStream())
-            {
-                AssetYamlSerializer.Default.Serialize(stream, instance);
-                stream.Flush();
-                stream.Position = 0;
-                return new StreamReader(stream).ReadToEnd();
-            }
+            using var stream = new MemoryStream();
+            AssetYamlSerializer.Default.Serialize(stream, instance);
+            stream.Flush();
+            stream.Position = 0;
+            return new StreamReader(stream).ReadToEnd();
         }
 
         [Fact]

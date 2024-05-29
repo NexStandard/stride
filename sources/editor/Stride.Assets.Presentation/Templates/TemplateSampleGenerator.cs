@@ -368,15 +368,13 @@ namespace Stride.Assets.Presentation.Templates
         private static bool IsBinaryFile(string file)
         {
             var buffer = new byte[8192];
-            using (var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var length = stream.Read(buffer, 0, buffer.Length);
+            for (int i = 0; i < length; i++)
             {
-                var length = stream.Read(buffer, 0, buffer.Length);
-                for (int i = 0; i < length; i++)
+                if (buffer[i] == 0)
                 {
-                    if (buffer[i] == 0)
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
             return false;

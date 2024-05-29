@@ -52,10 +52,8 @@ namespace Stride.Graphics.Tests
 
         internal static void Main(string[] args)
         {
-            using (Game game = new FixedAspectRatioTests())
-            {
-                game.Run();
-            }
+            using Game game = new FixedAspectRatioTests();
+            game.Run();
         }
 
         protected override void RegisterTests()

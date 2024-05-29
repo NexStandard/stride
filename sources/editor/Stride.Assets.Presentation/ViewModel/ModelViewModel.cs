@@ -86,22 +86,20 @@ namespace Stride.Assets.Presentation.ViewModel
             if (UPath.IsNullOrEmpty(source))
                 return;
 
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            var template = Session.FindTemplates(TemplateScope.Asset).SingleOrDefault(x => x.Id == SkeletonFromFileTemplateGenerator.Id);
+            if (template != null)
             {
-                var template = Session.FindTemplates(TemplateScope.Asset).SingleOrDefault(x => x.Id == SkeletonFromFileTemplateGenerator.Id);
-                if (template != null)
-                {
-                    var viewModel = new TemplateDescriptionViewModel(ServiceProvider, template);
-                    var skeleton = (await Session.ActiveAssetView.RunAssetTemplate(viewModel, new[] { source })).SingleOrDefault();
-                    if (skeleton == null)
-                        return;
+                var viewModel = new TemplateDescriptionViewModel(ServiceProvider, template);
+                var skeleton = (await Session.ActiveAssetView.RunAssetTemplate(viewModel, new[] { source })).SingleOrDefault();
+                if (skeleton == null)
+                    return;
 
-                    var skeletonNode = AssetRootNode[nameof(ModelAsset.Skeleton)];
-                    var reference = ContentReferenceHelper.CreateReference<Skeleton>(skeleton);
-                    skeletonNode.Update(reference);
-                }
-                UndoRedoService.SetName(transaction, "Create Skeleton");
+                var skeletonNode = AssetRootNode[nameof(ModelAsset.Skeleton)];
+                var reference = ContentReferenceHelper.CreateReference<Skeleton>(skeleton);
+                skeletonNode.Update(reference);
             }
+            UndoRedoService.SetName(transaction, "Create Skeleton");
         }
     }
 }

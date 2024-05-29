@@ -2539,12 +2539,10 @@ namespace FreeImageAPI
 		public IntPtr GetHbitmap(Color background)
 		{
 			EnsureNotDisposed();
-			using (FreeImageBitmap temp = new FreeImageBitmap(this))
-			{
-				temp.BackgroundColor = background;
-				return temp.GetHbitmap();
-			}
-		}
+            using FreeImageBitmap temp = new FreeImageBitmap(this);
+            temp.BackgroundColor = background;
+            return temp.GetHbitmap();
+        }
 
 		/// <summary>
 		/// Returns the handle to an icon.
@@ -2553,11 +2551,9 @@ namespace FreeImageAPI
 		public IntPtr GetHicon()
 		{
 			EnsureNotDisposed();
-			using (Bitmap bitmap = FreeImage.GetBitmap(dib, true))
-			{
-				return bitmap.GetHicon();
-			}
-		}
+            using Bitmap bitmap = FreeImage.GetBitmap(dib, true);
+            return bitmap.GetHicon();
+        }
 
 		/// <summary>
 		/// Creates a GDI bitmap object from this <see cref="FreeImageBitmap"/> with the same
@@ -3761,11 +3757,9 @@ namespace FreeImageAPI
 		/// <returns>The <see cref="FreeImageBitmap"/> that this method creates.</returns>
 		public static FreeImageBitmap FromHicon(IntPtr hicon)
 		{
-			using (Bitmap bitmap = Bitmap.FromHicon(hicon))
-			{
-				return new FreeImageBitmap(bitmap);
-			}
-		}
+            using Bitmap bitmap = Bitmap.FromHicon(hicon);
+            return new FreeImageBitmap(bitmap);
+        }
 
 		/// <summary>
 		/// Creates a <see cref="FreeImageBitmap"/> from the specified Windows resource.
@@ -3776,11 +3770,9 @@ namespace FreeImageAPI
 		/// <returns>The <see cref="FreeImageBitmap"/> that this method creates.</returns>
 		public static FreeImageBitmap FromResource(IntPtr hinstance, string bitmapName)
 		{
-			using (Bitmap bitmap = Bitmap.FromResource(hinstance, bitmapName))
-			{
-				return new FreeImageBitmap(bitmap);
-			}
-		}
+            using Bitmap bitmap = Bitmap.FromResource(hinstance, bitmapName);
+            return new FreeImageBitmap(bitmap);
+        }
 
 		/// <summary>
 		/// Creates a <see cref="FreeImageBitmap"/> from the specified file.
@@ -4360,16 +4352,14 @@ namespace FreeImageAPI
 		void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
 		{
 			EnsureNotDisposed();
-			using (MemoryStream memory = new MemoryStream(DataSize))
-			{
-				if (!FreeImage.SaveToStream(dib, memory, FREE_IMAGE_FORMAT.FIF_TIFF, FREE_IMAGE_SAVE_FLAGS.TIFF_LZW))
-				{
-					throw new SerializationException();
-				}
-				memory.Capacity = (int)memory.Length;
-				info.AddValue("Bitmap Data", memory.GetBuffer());
-			}
-		}
+            using MemoryStream memory = new MemoryStream(DataSize);
+            if (!FreeImage.SaveToStream(dib, memory, FREE_IMAGE_FORMAT.FIF_TIFF, FREE_IMAGE_SAVE_FLAGS.TIFF_LZW))
+            {
+                throw new SerializationException();
+            }
+            memory.Capacity = (int)memory.Length;
+            info.AddValue("Bitmap Data", memory.GetBuffer());
+        }
 
 		#endregion
 	}

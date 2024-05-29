@@ -282,14 +282,12 @@ namespace Stride.Core.Storage
             }
             else
             {
-                using (var streamRead = OpenStreamForRead(objectId, VirtualFileMode.Open, VirtualFileAccess.ReadWrite, VirtualFileShare.ReadWrite))
-                {
-                    var stream = backendWrite.OpenStream(objectId, mode, access, share);
+                using var streamRead = OpenStreamForRead(objectId, VirtualFileMode.Open, VirtualFileAccess.ReadWrite, VirtualFileShare.ReadWrite);
+                var stream = backendWrite.OpenStream(objectId, mode, access, share);
 
-                    streamRead?.CopyTo(stream);
-                    stream.Position = 0;
-                    return stream;
-                }
+                streamRead?.CopyTo(stream);
+                stream.Position = 0;
+                return stream;
             }
         }
 

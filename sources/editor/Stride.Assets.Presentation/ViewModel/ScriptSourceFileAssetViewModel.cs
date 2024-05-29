@@ -484,10 +484,8 @@ namespace Stride.Assets.Presentation.ViewModel
             {
                 await asset.Session.Dispatcher.InvokeTask(async () =>
                 {
-                    using (var streamWriter = new StreamWriter(stream, Encoding.UTF8, 1024, true))
-                    {
-                        await streamWriter.WriteAsync(Get());
-                    }
+                    using var streamWriter = new StreamWriter(stream, Encoding.UTF8, 1024, true);
+                    await streamWriter.WriteAsync(Get());
                 });
             }
 

@@ -26,10 +26,8 @@ namespace Stride.Core.Tests
             Profiler.Reset();
             var watcher = ExpectLog(new List<MatchMessageDelegate>());
             {
-                using (var profile = Profiler.Begin(TestKey))
-                {
-                    Thread.Sleep(100);
-                }
+                using var profile = Profiler.Begin(TestKey);
+                Thread.Sleep(100);
             }
             watcher.Finish();
         }
@@ -47,10 +45,8 @@ namespace Stride.Core.Tests
             {
 
                 Profiler.Enable(TestKey);
-                using (var profile = Profiler.Begin(TestKey))
-                {
-                    Thread.Sleep(timeToWait);
-                }
+                using var profile = Profiler.Begin(TestKey);
+                Thread.Sleep(timeToWait);
             }
             watcher.Finish();
         }
@@ -70,13 +66,9 @@ namespace Stride.Core.Tests
             {
 
                 Profiler.EnableAll();
-                using (var profile = Profiler.Begin(TestKey))
-                {
-                    using (var profile2 = Profiler.Begin(Test2Key))
-                    {
-                        Thread.Sleep(timeToWait);
-                    }
-                }
+                using var profile = Profiler.Begin(TestKey);
+                using var profile2 = Profiler.Begin(Test2Key);
+                Thread.Sleep(timeToWait);
             }
             watcher.Finish();
         }
@@ -97,14 +89,12 @@ namespace Stride.Core.Tests
             {
 
                 Profiler.EnableAll();
-                using (var profile = Profiler.Begin(TestKey))
-                {
-                    Thread.Sleep(timeToWait);
-                    profile.Mark();
+                using var profile = Profiler.Begin(TestKey);
+                Thread.Sleep(timeToWait);
+                profile.Mark();
 
-                    Thread.Sleep(timeToWait);
-                    profile.Mark();
-                }
+                Thread.Sleep(timeToWait);
+                profile.Mark();
             }
             watcher.Finish();
         }
@@ -125,12 +115,10 @@ namespace Stride.Core.Tests
             {
 
                 Profiler.EnableAll();
-                using (var profile = Profiler.Begin(TestKey))
-                {
-                    profile.Attributes.Add("MyAttribute", 5);
-                    Thread.Sleep(timeToWait);
-                    profile.Mark();
-                }
+                using var profile = Profiler.Begin(TestKey);
+                profile.Attributes.Add("MyAttribute", 5);
+                Thread.Sleep(timeToWait);
+                profile.Mark();
             }
             watcher.Finish();
         }

@@ -64,38 +64,37 @@ namespace Stride.ConnectionRouter
                 }
 
                 // TODO: Lock will be only for this folder but it should be shared across OS
-                using (var mutex = FileLock.TryLock("connectionrouter.lock"))
+                using var mutex = FileLock.TryLock("connectionrouter.lock");
+                if (mutex == null)
                 {
-                    if (mutex == null)
-                    {
-                        Console.WriteLine("Another instance of Stride Router is already running");
-                        return -1;
-                    }
-
-                    var router = new Router();
-
-                    // Start router (in listen server mode)
-                    router.Listen(RouterClient.DefaultPort).Wait();
-
-                    // Start Android management thread
-                    new Thread(() => AndroidTracker.TrackDevices(router)) { IsBackground = true }.Start();
-
-                    //Start iOS device discovery and proxy launcher
-                    //Currently this is used only internally for QA testing... as we cannot attach the debugger from windows for normal usages..
-                    if (IosTracker.CanProxy())
-                    {
-                        new Thread(async () =>
-                        {
-                            var iosTracker = new IosTracker(router);
-                            await iosTracker.TrackDevices();
-                        }) { IsBackground = true }.Start();
-                    }
-
-                    SetupTrayIcon(logFileName);
-
-                    // Start WinForms loop
-                    System.Windows.Forms.Application.Run();
+                    Console.WriteLine("Another instance of Stride Router is already running");
+                    return -1;
                 }
+
+                var router = new Router();
+
+                // Start router (in listen server mode)
+                router.Listen(RouterClient.DefaultPort).Wait();
+
+                // Start Android management thread
+                new Thread(() => AndroidTracker.TrackDevices(router)) { IsBackground = true }.Start();
+
+                //Start iOS device discovery and proxy launcher
+                //Currently this is used only internally for QA testing... as we cannot attach the debugger from windows for normal usages..
+                if (IosTracker.CanProxy())
+                {
+                    new Thread(async () =>
+                    {
+                        var iosTracker = new IosTracker(router);
+                        await iosTracker.TrackDevices();
+                    })
+                    { IsBackground = true }.Start();
+                }
+
+                SetupTrayIcon(logFileName);
+
+                // Start WinForms loop
+                System.Windows.Forms.Application.Run();
             }
             catch (Exception e)
             {

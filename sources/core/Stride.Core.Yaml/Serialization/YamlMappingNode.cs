@@ -163,18 +163,16 @@ namespace Stride.Core.Yaml.Serialization
         /// <param name="children">A sequence of <see cref="YamlNode"/> where even elements are keys and odd elements are values.</param>
         public YamlMappingNode(IEnumerable<YamlNode> children)
         {
-            using (var enumerator = children.GetEnumerator())
+            using var enumerator = children.GetEnumerator();
+            while (enumerator.MoveNext())
             {
-                while (enumerator.MoveNext())
+                var key = enumerator.Current;
+                if (!enumerator.MoveNext())
                 {
-                    var key = enumerator.Current;
-                    if (!enumerator.MoveNext())
-                    {
-                        throw new ArgumentException("When constructing a mapping node with a sequence, the number of elements of the sequence must be even.");
-                    }
-
-                    Add(key, enumerator.Current);
+                    throw new ArgumentException("When constructing a mapping node with a sequence, the number of elements of the sequence must be even.");
                 }
+
+                Add(key, enumerator.Current);
             }
         }
 

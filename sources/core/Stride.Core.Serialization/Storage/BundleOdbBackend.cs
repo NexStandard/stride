@@ -464,8 +464,8 @@ namespace Stride.Core.Storage
                             {
                                 if (!VirtualFileSystem.FileExists(x))
                                     return false;
-                                using (var incrementalStream = VirtualFileSystem.OpenStream(x, VirtualFileMode.Open, VirtualFileAccess.Read))
-                                    return ValidateHeader(incrementalStream);
+                                using var incrementalStream = VirtualFileSystem.OpenStream(x, VirtualFileMode.Open, VirtualFileAccess.Read);
+                                return ValidateHeader(incrementalStream);
                             }))
                             {
                                 return;
@@ -625,78 +625,76 @@ namespace Stride.Core.Storage
                         if (objects[i].Value.IncrementalBundleIndex > 0)
                             continue;
 
-                        using (var objectStream = backend.OpenStream(objectIds[i]))
+                        using var objectStream = backend.OpenStream(objectIds[i]);
+                        // Prepare object info
+                        var objectInfo = new ObjectInfo { StartOffset = objectOutputStream.Position, SizeNotCompressed = objectStream.Length };
+
+                        // re-order the file content so that it is not necessary to seek while reading the input stream (header/object/refs -> header/refs/object)
+                        var inputStream = objectStream;
+                        var originalStreamLength = objectStream.Length;
+                        var streamReader = new BinarySerializationReader(inputStream);
+                        var chunkHeader = ChunkHeader.Read(streamReader);
+                        if (chunkHeader != null)
                         {
-                            // Prepare object info
-                            var objectInfo = new ObjectInfo { StartOffset = objectOutputStream.Position, SizeNotCompressed = objectStream.Length };
+                            // create the reordered stream
+                            var reorderedStream = new MemoryStream((int)originalStreamLength);
 
-                            // re-order the file content so that it is not necessary to seek while reading the input stream (header/object/refs -> header/refs/object)
-                            var inputStream = objectStream;
-                            var originalStreamLength = objectStream.Length;
-                            var streamReader = new BinarySerializationReader(inputStream);
-                            var chunkHeader = ChunkHeader.Read(streamReader);
-                            if (chunkHeader != null)
-                            {
-                                // create the reordered stream
-                                var reorderedStream = new MemoryStream((int)originalStreamLength);
+                            // copy the header
+                            var streamWriter = new BinarySerializationWriter(reorderedStream);
+                            chunkHeader.Write(streamWriter);
 
-                                // copy the header
-                                var streamWriter = new BinarySerializationWriter(reorderedStream);
-                                chunkHeader.Write(streamWriter);
+                            // copy the references
+                            var newOffsetReferences = reorderedStream.Position;
+                            inputStream.Position = chunkHeader.OffsetToReferences;
+                            inputStream.CopyTo(reorderedStream);
 
-                                // copy the references
-                                var newOffsetReferences = reorderedStream.Position;
-                                inputStream.Position = chunkHeader.OffsetToReferences;
-                                inputStream.CopyTo(reorderedStream);
+                            // copy the object
+                            var newOffsetObject = reorderedStream.Position;
+                            inputStream.Position = chunkHeader.OffsetToObject;
+                            inputStream.CopyTo(reorderedStream, chunkHeader.OffsetToReferences - chunkHeader.OffsetToObject);
 
-                                // copy the object
-                                var newOffsetObject = reorderedStream.Position;
-                                inputStream.Position = chunkHeader.OffsetToObject;
-                                inputStream.CopyTo(reorderedStream, chunkHeader.OffsetToReferences - chunkHeader.OffsetToObject);
+                            // rewrite the chunk header with correct offsets
+                            chunkHeader.OffsetToObject = (int)newOffsetObject;
+                            chunkHeader.OffsetToReferences = (int)newOffsetReferences;
+                            reorderedStream.Position = 0;
+                            chunkHeader.Write(streamWriter);
 
-                                // rewrite the chunk header with correct offsets
-                                chunkHeader.OffsetToObject = (int)newOffsetObject;
-                                chunkHeader.OffsetToReferences = (int)newOffsetReferences;
-                                reorderedStream.Position = 0;
-                                chunkHeader.Write(streamWriter);
+                            // change the input stream to use reordered stream
+                            inputStream = reorderedStream;
+                            inputStream.Position = 0;
+                        }
 
-                                // change the input stream to use reordered stream
-                                inputStream = reorderedStream;
-                                inputStream.Position = 0;
-                            }
+                        // compress the stream
+                        if (!disableCompressionIds.Contains(objectIds[i]))
+                        {
+                            objectInfo.IsCompressed = true;
 
-                            // compress the stream
-                            if (!disableCompressionIds.Contains(objectIds[i]))
-                            {
-                                objectInfo.IsCompressed = true;
+                            var lz4OutputStream = new LZ4Stream(objectOutputStream, CompressionMode.Compress);
+                            inputStream.CopyTo(lz4OutputStream);
+                            lz4OutputStream.Flush();
+                        }
+                        // copy the stream "as is"
+                        else
+                        {
+                            // Write stream
+                            inputStream.CopyTo(objectOutputStream);
+                        }
 
-                                var lz4OutputStream = new LZ4Stream(objectOutputStream, CompressionMode.Compress);
-                                inputStream.CopyTo(lz4OutputStream);
-                                lz4OutputStream.Flush();
-                            }
-                            // copy the stream "as is"
-                            else
-                            {
-                                // Write stream
-                                inputStream.CopyTo(objectOutputStream);
-                            }
+                        // release the reordered created stream
+                        if (chunkHeader != null)
+                            inputStream.Dispose();
 
-                            // release the reordered created stream
-                            if (chunkHeader != null)
-                                inputStream.Dispose();
+                        // Add updated object info
+                        objectInfo.EndOffset = objectOutputStream.Position;
+                        // Note: we add 1 because 0 is reserved for self; first incremental bundle starts at 1
+                        objectInfo.IncrementalBundleIndex = objectOutputStream == incrementalStream ? incrementalBundleIndex + 1 : 0;
+                        objects[i] = new KeyValuePair<ObjectId, ObjectInfo>(objectIds[i], objectInfo);
 
-                            // Add updated object info
-                            objectInfo.EndOffset = objectOutputStream.Position;
-                            // Note: we add 1 because 0 is reserved for self; first incremental bundle starts at 1
-                            objectInfo.IncrementalBundleIndex = objectOutputStream == incrementalStream ? incrementalBundleIndex + 1 : 0;
-                            objects[i] = new KeyValuePair<ObjectId, ObjectInfo>(objectIds[i], objectInfo);
-
-                            if (useIncrementalBundle)
-                            {
-                                // Also update incremental bundle object info
-                                objectInfo.IncrementalBundleIndex = 0; // stored in same bundle
-                                incrementalObjects[incrementalObjectIndex++] = new KeyValuePair<ObjectId, ObjectInfo>(objectIds[i], objectInfo);
-                            }
+                        if (useIncrementalBundle)
+                        {
+                            // Also update incremental bundle object info
+                            objectInfo.IncrementalBundleIndex = 0; // stored in same bundle
+                            incrementalObjects[incrementalObjectIndex++] = new KeyValuePair<ObjectId, ObjectInfo>(objectIds[i], objectInfo);
                         }
                     }
 

@@ -241,11 +241,9 @@ namespace Stride.Core.Assets.Editor.ViewModel
         /// </remarks>
         protected internal virtual void Initialize()
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                PropertyGraph?.Initialize();
-                UndoRedoService.SetName(transaction, $"Reconcile {Url} with its archetypes");
-            }
+            using var transaction = UndoRedoService.CreateTransaction();
+            PropertyGraph?.Initialize();
+            UndoRedoService.SetName(transaction, $"Reconcile {Url} with its archetypes");
         }
 
         /// <inheritdoc/>
@@ -264,13 +262,11 @@ namespace Stride.Core.Assets.Editor.ViewModel
         {
             if (!newDirectory.Package.Match(newPackage)) throw new ArgumentException("The given directory is not contained in the given package.");
 
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                string previousDirectory = directory.Path;
-                var result = UpdateUrl(newPackage, newDirectory, Name);
-                UndoRedoService.SetName(transaction, $"Move asset '{Name}' from '{previousDirectory}' to '{newDirectory.Path}'");
-                return result;
-            }
+            using var transaction = UndoRedoService.CreateTransaction();
+            string previousDirectory = directory.Path;
+            var result = UpdateUrl(newPackage, newDirectory, Name);
+            UndoRedoService.SetName(transaction, $"Move asset '{Name}' from '{previousDirectory}' to '{newDirectory.Path}'");
+            return result;
         }
 
         [NotNull]
@@ -436,12 +432,10 @@ namespace Stride.Core.Assets.Editor.ViewModel
             if (newName == name)
                 return;
 
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                string previousName = name;
-                UpdateUrl(package, directory, newName);
-                UndoRedoService.SetName(transaction, $"Rename asset '{previousName}' to '{newName}'");
-            }
+            using var transaction = UndoRedoService.CreateTransaction();
+            string previousName = name;
+            UpdateUrl(package, directory, newName);
+            UndoRedoService.SetName(transaction, $"Rename asset '{previousName}' to '{newName}'");
         }
 
         private bool UpdateUrl(Package newPackage, DirectoryBaseViewModel newDirectory, string newName, bool updateParentDirectory = true)

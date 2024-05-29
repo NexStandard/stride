@@ -29,11 +29,9 @@ namespace Stride.Audio.Tests.Engine
         [Fact]
         public void TestAccessToAudio()
         {
-            using (var game = new Game())
-            {
-                AudioSystem audioInterface = game.Audio;
-                Assert.NotNull(audioInterface);
-            }
+            using var game = new Game();
+            AudioSystem audioInterface = game.Audio;
+            Assert.NotNull(audioInterface);
         }
     }
 }

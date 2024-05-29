@@ -169,13 +169,9 @@ namespace Stride.Shaders.Tests
         private void CopyStream(DatabaseFileProvider database, string fromFilePath)
         {
             var shaderFilename = string.Format("shaders/{0}", Path.GetFileName(fromFilePath));
-            using (var outStream = database.OpenStream(shaderFilename, VirtualFileMode.Create, VirtualFileAccess.Write, VirtualFileShare.Write))
-            {
-                using (var inStream = new FileStream(fromFilePath, FileMode.Open, FileAccess.Read))
-                {
-                    inStream.CopyTo(outStream);
-                }
-            }
+            using var outStream = database.OpenStream(shaderFilename, VirtualFileMode.Create, VirtualFileAccess.Write, VirtualFileShare.Write);
+            using var inStream = new FileStream(fromFilePath, FileMode.Open, FileAccess.Read);
+            inStream.CopyTo(outStream);
         }
 
         /// <summary>
@@ -211,25 +207,23 @@ namespace Stride.Shaders.Tests
         {
             // Create and mount database file system
             var objDatabase = ObjectDatabase.CreateDefaultDatabase();
-            using (var assetIndexMap = ContentIndexMap.Load(VirtualFileSystem.ApplicationDatabaseIndexPath))
-            {
-                var database = new DatabaseFileProvider(assetIndexMap, objDatabase);
+            using var assetIndexMap = ContentIndexMap.Load(VirtualFileSystem.ApplicationDatabaseIndexPath);
+            var database = new DatabaseFileProvider(assetIndexMap, objDatabase);
 
-                foreach (var shaderName in Directory.EnumerateFiles(@"..\..\sources\shaders", "*.sdsl"))
-                    CopyStream(database, shaderName);
+            foreach (var shaderName in Directory.EnumerateFiles(@"..\..\sources\shaders", "*.sdsl"))
+                CopyStream(database, shaderName);
 
-                foreach (var shaderName in Directory.EnumerateFiles(@"..\..\sources\engine\Stride.Shaders.Tests\GameAssets\Compiler", "*.sdsl"))
-                    CopyStream(database, shaderName);
+            foreach (var shaderName in Directory.EnumerateFiles(@"..\..\sources\engine\Stride.Shaders.Tests\GameAssets\Compiler", "*.sdsl"))
+                CopyStream(database, shaderName);
 
-                var compiler = new EffectCompiler(database);
-                compiler.SourceDirectories.Add("assets/shaders");
-                var compilerCache = new EffectCompilerCache(compiler, database);
+            var compiler = new EffectCompiler(database);
+            compiler.SourceDirectories.Add("assets/shaders");
+            var compilerCache = new EffectCompilerCache(compiler, database);
 
-                var compilerParameters = new CompilerParameters { EffectParameters = { Platform = GraphicsPlatform.Direct3D11 } };
+            var compilerParameters = new CompilerParameters { EffectParameters = { Platform = GraphicsPlatform.Direct3D11 } };
 
-                left = compilerCache.Compile(new ShaderMixinGeneratorSource("SimpleEffect"), compilerParameters);
-                right = compilerCache.Compile(new ShaderMixinGeneratorSource("SimpleEffect"), compilerParameters);
-            }
+            left = compilerCache.Compile(new ShaderMixinGeneratorSource("SimpleEffect"), compilerParameters);
+            right = compilerCache.Compile(new ShaderMixinGeneratorSource("SimpleEffect"), compilerParameters);
         }
 
         [Fact(Skip = "This test fixture is unmaintained and currently doesn't pass")]

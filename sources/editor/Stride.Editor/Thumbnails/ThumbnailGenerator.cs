@@ -218,17 +218,15 @@ namespace Stride.Editor.Thumbnails
                             gameSystems.Draw(nullGameTime);
 
                             // write the thumbnail to the file
-                            using (var thumbnailImage = renderTarget.GetDataAsImage(GraphicsCommandList))
-                            using (var outputImageStream = request.FileProvider.OpenStream(request.Url, VirtualFileMode.Create, VirtualFileAccess.Write))
-                            {
-                                request.PostProcessThumbnail?.Invoke(thumbnailImage);
+                            using var thumbnailImage = renderTarget.GetDataAsImage(GraphicsCommandList);
+                            using var outputImageStream = request.FileProvider.OpenStream(request.Url, VirtualFileMode.Create, VirtualFileAccess.Write);
+                            request.PostProcessThumbnail?.Invoke(thumbnailImage);
 
-                                ThumbnailBuildHelper.ApplyThumbnailStatus(thumbnailImage, request.DependencyBuildStatus);
+                            ThumbnailBuildHelper.ApplyThumbnailStatus(thumbnailImage, request.DependencyBuildStatus);
 
-                                thumbnailImage.Save(outputImageStream, ImageFileType.Png);
+                            thumbnailImage.Save(outputImageStream, ImageFileType.Png);
 
-                                request.Logger.Info($"Thumbnail creation successful [{request.Url}] to ({thumbnailImage.Description.Width}x{thumbnailImage.Description.Height},{thumbnailImage.Description.Format})");
-                            }
+                            request.Logger.Info($"Thumbnail creation successful [{request.Url}] to ({thumbnailImage.Description.Width}x{thumbnailImage.Description.Height},{thumbnailImage.Description.Format})");
                         }
                         finally
                         {

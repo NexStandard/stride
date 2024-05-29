@@ -143,38 +143,36 @@ namespace Stride.Shaders.Parser.Mixins
                             var pathUrl = sourceUrl + "/path";
                             if (FileExists(pathUrl))
                             {
-                                using (var fileStream = OpenStream(pathUrl))
+                                using var fileStream = OpenStream(pathUrl);
+                                string shaderSourcePath;
+                                using (var sr = new StreamReader(fileStream, Encoding.UTF8))
+                                    shaderSourcePath = sr.ReadToEnd();
+
+                                if (File.Exists(shaderSourcePath))
                                 {
-                                    string shaderSourcePath;
-                                    using (var sr = new StreamReader(fileStream, Encoding.UTF8))
-                                        shaderSourcePath = sr.ReadToEnd();
-
-                                    if (File.Exists(shaderSourcePath))
+                                    byte[] fileData = null;
+                                    for (int tries = 10; tries >= 0; --tries)
                                     {
-                                        byte[] fileData = null;
-                                        for (int tries = 10; tries >= 0; --tries)
+                                        try
                                         {
-                                            try
-                                            {
-                                                fileData = File.ReadAllBytes(shaderSourcePath);
-                                                break;
-                                            }
-                                            catch (IOException)
-                                            {
-                                                // Try again
-                                            }
+                                            fileData = File.ReadAllBytes(shaderSourcePath);
+                                            break;
                                         }
-
-                                        if (fileData != null)
+                                        catch (IOException)
                                         {
-                                            // Replace path with a local path
-                                            shaderSource.Path = Path.Combine(PlatformFolders.ApplicationBinaryDirectory, shaderSourcePath);
-                                            shaderSource.Hash = ObjectId.FromBytes(fileData);
-
-                                            // Note: we can't use Encoding.UTF8.GetString directly because there might be the UTF8 BOM at the beginning of the file
-                                            using (StreamReader reader = new StreamReader(new MemoryStream(fileData), Encoding.UTF8))
-                                                shaderSource.Source = reader.ReadToEnd();
+                                            // Try again
                                         }
+                                    }
+
+                                    if (fileData != null)
+                                    {
+                                        // Replace path with a local path
+                                        shaderSource.Path = Path.Combine(PlatformFolders.ApplicationBinaryDirectory, shaderSourcePath);
+                                        shaderSource.Hash = ObjectId.FromBytes(fileData);
+
+                                        // Note: we can't use Encoding.UTF8.GetString directly because there might be the UTF8 BOM at the beginning of the file
+                                        using StreamReader reader = new StreamReader(new MemoryStream(fileData), Encoding.UTF8);
+                                        shaderSource.Source = reader.ReadToEnd();
                                     }
                                 }
                             }
@@ -182,26 +180,22 @@ namespace Stride.Shaders.Parser.Mixins
 
                         if (shaderSource.Source == null)
                         {
-                            using (var sourceStream = OpenStream(sourceUrl))
+                            using var sourceStream = OpenStream(sourceUrl);
+                            var databaseStream = sourceStream as IDatabaseStream;
+
+                            using var sr = new StreamReader(sourceStream);
+                            shaderSource.Source = sr.ReadToEnd();
+
+                            if (databaseStream == null)
                             {
-                                var databaseStream = sourceStream as IDatabaseStream;
-
-                                using (var sr = new StreamReader(sourceStream))
-                                {
-                                    shaderSource.Source = sr.ReadToEnd();
-
-                                    if (databaseStream == null)
-                                    {
-                                        sourceStream.Position = 0;
-                                        var data = new byte[sourceStream.Length];
-                                        sourceStream.Read(data, 0, (int)sourceStream.Length);
-                                        shaderSource.Hash = ObjectId.FromBytes(data);
-                                    }
-                                    else
-                                    {
-                                        shaderSource.Hash = databaseStream.ObjectId;
-                                    }
-                                }
+                                sourceStream.Position = 0;
+                                var data = new byte[sourceStream.Length];
+                                sourceStream.Read(data, 0, (int)sourceStream.Length);
+                                shaderSource.Hash = ObjectId.FromBytes(data);
+                            }
+                            else
+                            {
+                                shaderSource.Hash = databaseStream.ObjectId;
                             }
                         }
 

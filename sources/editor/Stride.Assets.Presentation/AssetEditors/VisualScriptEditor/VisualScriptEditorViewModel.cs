@@ -202,16 +202,14 @@ namespace Stride.Assets.Presentation.AssetEditors.VisualScriptEditor
 
         private async Task RegenerateSlots()
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            // Regenerate slots
+            foreach (var function in Asset.Methods)
             {
-                // Regenerate slots
-                foreach (var function in Asset.Methods)
-                {
-                    await function.RegenerateSlots();
-                }
-
-                UndoRedoService.SetName(transaction, "Regenerated slots (code update)");
+                await function.RegenerateSlots();
             }
+
+            UndoRedoService.SetName(transaction, "Regenerated slots (code update)");
         }
 
         private void AddNewProperty()
@@ -226,15 +224,13 @@ namespace Stride.Assets.Presentation.AssetEditors.VisualScriptEditor
 
         private void RemoveSelectedProperties()
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            foreach (var property in SelectedProperties.Cast<NodeViewModel>().Select(x => (Property)x.NodeValue).ToList())
             {
-                foreach (var property in SelectedProperties.Cast<NodeViewModel>().Select(x => (Property)x.NodeValue).ToList())
-                {
-                    Asset.RemoveProperty(property);
-                }
-
-                UndoRedoService.SetName(transaction, "Delete propertie(s)");
+                Asset.RemoveProperty(property);
             }
+
+            UndoRedoService.SetName(transaction, "Delete propertie(s)");
         }
 
         private void AddNewMethod(object methodSymbolObject)
@@ -324,11 +320,9 @@ namespace Stride.Assets.Presentation.AssetEditors.VisualScriptEditor
             if (SelectedMethod == null)
                 return;
 
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                UndoRedoService.SetName(transaction, $"Delete function {SelectedMethod.Method.Name}");
-                Asset.RemoveMethod(SelectedMethod.Method);
-            }
+            using var transaction = UndoRedoService.CreateTransaction();
+            UndoRedoService.SetName(transaction, $"Delete function {SelectedMethod.Method.Name}");
+            Asset.RemoveMethod(SelectedMethod.Method);
         }
 
         private async Task SwitchFunctionEditor(VisualScriptMethodViewModel previousMethod, VisualScriptMethodViewModel newMethod)

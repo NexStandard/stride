@@ -118,11 +118,9 @@ namespace Stride.Assets.Presentation.CurveEditor.ViewModels
 
         void IResizingTarget.OnResizingCompleted(ResizingDirection direction, double horizontalChange, double verticalChange)
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                OnResizingCompleted(direction, horizontalChange, verticalChange);
-                UndoRedoService.SetName(transaction, "Move control point");
-            }
+            using var transaction = UndoRedoService.CreateTransaction();
+            OnResizingCompleted(direction, horizontalChange, verticalChange);
+            UndoRedoService.SetName(transaction, "Move control point");
         }
 
         void IResizingTarget.OnResizingDelta(ResizingDirection direction, double horizontalChange, double verticalChange)

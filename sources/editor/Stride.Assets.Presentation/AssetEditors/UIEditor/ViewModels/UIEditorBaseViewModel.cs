@@ -274,26 +274,24 @@ namespace Stride.Assets.Presentation.AssetEditors.UIEditor.ViewModels
             if (node == null)
                 return;
 
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            foreach (var kv in changes)
             {
-                foreach (var kv in changes)
+                var propertyName = kv.Key;
+                var propertyValue = kv.Value;
+
+                var member = node.TryGetChild(propertyName);
+                if (member == null)
+                    continue;
+
+                // Update properties only when they actually changed
+                var currentValue = member.Retrieve();
+                if (currentValue != propertyValue)
                 {
-                    var propertyName = kv.Key;
-                    var propertyValue = kv.Value;
-
-                    var member = node.TryGetChild(propertyName);
-                    if (member == null)
-                        continue;
-
-                    // Update properties only when they actually changed
-                    var currentValue = member.Retrieve();
-                    if (currentValue != propertyValue)
-                    {
-                        member.Update(propertyValue);
-                    }
+                    member.Update(propertyValue);
                 }
-                UndoRedoService.SetName(transaction, $"Update {element.ElementType.Name}");
             }
+            UndoRedoService.SetName(transaction, $"Update {element.ElementType.Name}");
         }
 
         /// <inheritdoc/>
@@ -602,30 +600,28 @@ namespace Stride.Assets.Presentation.AssetEditors.UIEditor.ViewModels
             if (allParents.Any(x => x != parent))
                 throw new InvalidOperationException("This operation can only be executed on a selection of sibling elements.");
 
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            var children = SelectedItems.ToList();
+            // Create the new panel into which we'll insert the selection
+            var newPanel = (Panel)Activator.CreateInstance(targetPanelType);
+            var newPanelDesign = new UIElementDesign(newPanel);
+            // Create a hierarchy containing all children and the panel
+            var hierarchy = UIAssetPropertyGraph.CloneSubHierarchies(Asset.Session.AssetNodeContainer, Asset.Asset, children.Select(c => c.Id.ObjectId), SubHierarchyCloneFlags.None, out _);
+            hierarchy.RootParts.Add(newPanel);
+            hierarchy.Parts.Add(newPanelDesign);
+            // Remove all children from their partDesign panel.
+            foreach (var child in children)
             {
-                var children = SelectedItems.ToList();
-                // Create the new panel into which we'll insert the selection
-                var newPanel = (Panel)Activator.CreateInstance(targetPanelType);
-                var newPanelDesign = new UIElementDesign(newPanel);
-                // Create a hierarchy containing all children and the panel
-                var hierarchy = UIAssetPropertyGraph.CloneSubHierarchies(Asset.Session.AssetNodeContainer, Asset.Asset, children.Select(c => c.Id.ObjectId), SubHierarchyCloneFlags.None, out _);
-                hierarchy.RootParts.Add(newPanel);
-                hierarchy.Parts.Add(newPanelDesign);
-                // Remove all children from their partDesign panel.
-                foreach (var child in children)
-                {
-                    child.Asset.AssetHierarchyPropertyGraph.RemovePartFromAsset(child.UIElementDesign);
-                }
-                // Add the new panel in place of the selected content.
-                parent.Asset.InsertUIElement(hierarchy.Parts, newPanelDesign, (parent as UIElementViewModel)?.AssetSideUIElement);
-                // Add the children into the new panel.
-                foreach (var child in children)
-                {
-                    parent.Asset.InsertUIElement(hierarchy.Parts, hierarchy.Parts[child.Id.ObjectId], newPanel);
-                }
-                UndoRedoService.SetName(transaction, $"Group into {targetPanelType.Name}");
+                child.Asset.AssetHierarchyPropertyGraph.RemovePartFromAsset(child.UIElementDesign);
             }
+            // Add the new panel in place of the selected content.
+            parent.Asset.InsertUIElement(hierarchy.Parts, newPanelDesign, (parent as UIElementViewModel)?.AssetSideUIElement);
+            // Add the children into the new panel.
+            foreach (var child in children)
+            {
+                parent.Asset.InsertUIElement(hierarchy.Parts, hierarchy.Parts[child.Id.ObjectId], newPanel);
+            }
+            UndoRedoService.SetName(transaction, $"Group into {targetPanelType.Name}");
         }
 
         private void InitializeLibraries()

@@ -89,16 +89,14 @@ namespace Stride.Core.Assets.Editor.View.Behaviors
             public void AddChildren(IReadOnlyCollection<object> children, AddChildModifiers modifiers)
             {
                 var actionService = serviceProvider.Get<IUndoRedoService>();
-                using (var transaction = actionService.CreateTransaction())
+                using var transaction = actionService.CreateTransaction();
+                foreach (var propertyProvider in propertyProviders)
                 {
-                    foreach (var propertyProvider in propertyProviders)
-                    {
-                        propertyProvider.AddChildren(children, modifiers);
-                    }
-
-                    // TODO: If there is only a single transaction, take its name instead
-                    actionService.SetName(transaction, "Add new component(s)");
+                    propertyProvider.AddChildren(children, modifiers);
                 }
+
+                // TODO: If there is only a single transaction, take its name instead
+                actionService.SetName(transaction, "Add new component(s)");
             }
         }
     }

@@ -338,11 +338,9 @@ namespace FreeImageAPI
 		/// </param>
 		public void Save(string filename)
 		{
-			using (Stream stream = new FileStream(filename, FileMode.Create, FileAccess.Write))
-			{
-				Save(stream);
-			}
-		}
+            using Stream stream = new FileStream(filename, FileMode.Create, FileAccess.Write);
+            Save(stream);
+        }
 
 		/// <summary>
 		/// Saves this <see cref="Palette"/> to the specified stream.
@@ -373,11 +371,9 @@ namespace FreeImageAPI
 		/// <param name="filename">The name of the palette file.</param>
 		public void Load(string filename)
 		{
-			using (Stream stream = new FileStream(filename, FileMode.Open, FileAccess.Read))
-			{
-				Load(stream);
-			}
-		}
+            using Stream stream = new FileStream(filename, FileMode.Open, FileAccess.Read);
+            Load(stream);
+        }
 
 		/// <summary>
 		/// Loads a palette from the specified stream.

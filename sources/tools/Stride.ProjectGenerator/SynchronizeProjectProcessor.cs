@@ -135,10 +135,8 @@ namespace Stride.ProjectGenerator
                     )
                 );
 
-            using (var fileStream = new StreamWriter(infoFile))
-            {
-                fileStream.Write(doc.ToString());
-            }
+            using var fileStream = new StreamWriter(infoFile);
+            fileStream.Write(doc.ToString());
         }
     }
 }

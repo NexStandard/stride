@@ -344,51 +344,49 @@ namespace Stride.Games
         {
             try
             {
-                using (var profile = Profiler.Begin(GameProfilingKeys.GameInitialize))
+                using var profile = Profiler.Begin(GameProfilingKeys.GameInitialize);
+                // Initialize this instance and all game systems before trying to create the device.
+                Initialize();
+
+                // Make sure that the device is already created
+                graphicsDeviceManager.CreateDevice();
+
+                // Gets the graphics device service
+                graphicsDeviceService = Services.GetService<IGraphicsDeviceService>();
+                if (graphicsDeviceService == null)
                 {
-                    // Initialize this instance and all game systems before trying to create the device.
-                    Initialize();
-
-                    // Make sure that the device is already created
-                    graphicsDeviceManager.CreateDevice();
-
-                    // Gets the graphics device service
-                    graphicsDeviceService = Services.GetService<IGraphicsDeviceService>();
-                    if (graphicsDeviceService == null)
-                    {
-                        throw new InvalidOperationException("No GraphicsDeviceService found");
-                    }
-
-                    // Checks the graphics device
-                    if (graphicsDeviceService.GraphicsDevice == null)
-                    {
-                        throw new InvalidOperationException("No GraphicsDevice found");
-                    }
-
-                    // Setup the graphics device if it was not already setup.
-                    SetupGraphicsDeviceEvents();
-
-                    // Bind Graphics Context enabling initialize to use GL API eg. SetData to texture ...etc
-                    BeginDraw();
-
-                    LoadContentInternal();
-
-                    IsRunning = true;
-
-                    BeginRun();
-
-                    autoTickTimer.Reset();
-                    UpdateTime.Reset(UpdateTime.Total);
-
-                    // Run the first time an update
-                    using (Profiler.Begin(GameProfilingKeys.GameUpdate))
-                    {
-                        Update(UpdateTime);
-                    }
-
-                    // Unbind Graphics Context without presenting
-                    EndDraw(false);
+                    throw new InvalidOperationException("No GraphicsDeviceService found");
                 }
+
+                // Checks the graphics device
+                if (graphicsDeviceService.GraphicsDevice == null)
+                {
+                    throw new InvalidOperationException("No GraphicsDevice found");
+                }
+
+                // Setup the graphics device if it was not already setup.
+                SetupGraphicsDeviceEvents();
+
+                // Bind Graphics Context enabling initialize to use GL API eg. SetData to texture ...etc
+                BeginDraw();
+
+                LoadContentInternal();
+
+                IsRunning = true;
+
+                BeginRun();
+
+                autoTickTimer.Reset();
+                UpdateTime.Reset(UpdateTime.Total);
+
+                // Run the first time an update
+                using (Profiler.Begin(GameProfilingKeys.GameUpdate))
+                {
+                    Update(UpdateTime);
+                }
+
+                // Unbind Graphics Context without presenting
+                EndDraw(false);
             }
             catch (Exception ex)
             {

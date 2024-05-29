@@ -50,12 +50,10 @@ namespace Stride.Core.Collections
             {
                 size = 0;
                 Items = new T[DefaultCapacity];
-                using (var enumerator = collection.GetEnumerator())
+                using var enumerator = collection.GetEnumerator();
+                while (enumerator.MoveNext())
                 {
-                    while (enumerator.MoveNext())
-                    {
-                        Add(enumerator.Current);
-                    }
+                    Add(enumerator.Current);
                 }
             }
         }
@@ -431,12 +429,10 @@ namespace Stride.Core.Collections
             }
             else
             {
-                using (var enumerator = collection.GetEnumerator())
+                using var enumerator = collection.GetEnumerator();
+                while (enumerator.MoveNext())
                 {
-                    while (enumerator.MoveNext())
-                    {
-                        Insert(index++, enumerator.Current);
-                    }
+                    Insert(index++, enumerator.Current);
                 }
             }
         }

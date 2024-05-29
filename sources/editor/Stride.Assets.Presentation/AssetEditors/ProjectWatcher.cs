@@ -268,10 +268,8 @@ namespace Stride.Assets.Presentation.AssetEditors
                 {
                     try
                     {
-                        using (var streamReader = new StreamReader(File.Open(changedFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite), Encoding.UTF8, true))
-                        {
-                            source = streamReader.ReadToEnd();
-                        }
+                        using var streamReader = new StreamReader(File.Open(changedFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite), Encoding.UTF8, true);
+                        source = streamReader.ReadToEnd();
                         break;
                     }
                     catch (IOException)

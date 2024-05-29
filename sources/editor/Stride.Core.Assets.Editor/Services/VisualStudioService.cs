@@ -116,14 +116,12 @@ namespace Stride.Core.Assets.Editor.Services
                 {
                     // If there is a matching instance, get its command line.
                     var query = $"SELECT CommandLine FROM Win32_Process WHERE ProcessId = {process.Id}";
-                    using (var managementObjectSearcher = new ManagementObjectSearcher(query))
+                    using var managementObjectSearcher = new ManagementObjectSearcher(query);
+                    var managementObject = managementObjectSearcher.Get().Cast<ManagementObject>().First();
+                    var commandLine = managementObject["CommandLine"].ToString();
+                    if (commandLine.Replace('/', '\\').Contains(solutionPath.ToString().Replace('/', '\\'), StringComparison.OrdinalIgnoreCase))
                     {
-                        var managementObject = managementObjectSearcher.Get().Cast<ManagementObject>().First();
-                        var commandLine = managementObject["CommandLine"].ToString();
-                        if (commandLine.Replace('/', '\\').Contains(solutionPath.ToString().Replace('/', '\\'), StringComparison.OrdinalIgnoreCase))
-                        {
-                            return process;
-                        }
+                        return process;
                     }
                 }
             }

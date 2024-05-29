@@ -40,11 +40,9 @@ namespace Stride.Core.Presentation.Quantum
 
         public override void SetNodeValue(TTargetType value)
         {
-            using (var transaction = ActionService?.CreateTransaction())
-            {
-                Node.Update(Converter(value));
-                ActionService?.SetName(transaction, $"Update property {PropertyName}");
-            }
+            using var transaction = ActionService?.CreateTransaction();
+            Node.Update(Converter(value));
+            ActionService?.SetName(transaction, $"Update property {PropertyName}");
         }
     }
 

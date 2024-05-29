@@ -103,36 +103,34 @@ namespace Stride.Assets.Presentation.Thumbnails
                 base.CustomizeThumbnail(image);
 
                 // Combine textures
-                using (var thumbnailBuilderHelper = new ThumbnailBuildHelper())
-                using (var generatedThumbnail = Texture.New(thumbnailBuilderHelper.GraphicsDevice, image))
-                {
-                    // Set color space
-                    var oldColorSpace = thumbnailBuilderHelper.GraphicsDevice.ColorSpace;
-                    thumbnailBuilderHelper.GraphicsDevice.ColorSpace = Parameters.ColorSpace;
+                using var thumbnailBuilderHelper = new ThumbnailBuildHelper();
+                using var generatedThumbnail = Texture.New(thumbnailBuilderHelper.GraphicsDevice, image);
+                // Set color space
+                var oldColorSpace = thumbnailBuilderHelper.GraphicsDevice.ColorSpace;
+                thumbnailBuilderHelper.GraphicsDevice.ColorSpace = Parameters.ColorSpace;
 
-                    // Load animation default thumbnail
-                    if (animationPreviewTexture == null)
-                        animationPreviewTexture = TextureExtensions.FromFileData(thumbnailBuilderHelper.GraphicsDevice, StaticThumbnails.AnimationThumbnail);
+                // Load animation default thumbnail
+                if (animationPreviewTexture == null)
+                    animationPreviewTexture = TextureExtensions.FromFileData(thumbnailBuilderHelper.GraphicsDevice, StaticThumbnails.AnimationThumbnail);
 
-                    thumbnailBuilderHelper.InitializeRenderTargets(PixelFormat.R8G8B8A8_UNorm_SRgb, animationPreviewTexture.Width, animationPreviewTexture.Height);
+                thumbnailBuilderHelper.InitializeRenderTargets(PixelFormat.R8G8B8A8_UNorm_SRgb, animationPreviewTexture.Width, animationPreviewTexture.Height);
 
-                    // Generate thumbnail with status icon
-                    // Clear (transparent)
-                    thumbnailBuilderHelper.GraphicsContext.CommandList.Clear(thumbnailBuilderHelper.RenderTarget, new Color4());
-                    thumbnailBuilderHelper.GraphicsContext.CommandList.SetRenderTargetAndViewport(null, thumbnailBuilderHelper.RenderTarget);
+                // Generate thumbnail with status icon
+                // Clear (transparent)
+                thumbnailBuilderHelper.GraphicsContext.CommandList.Clear(thumbnailBuilderHelper.RenderTarget, new Color4());
+                thumbnailBuilderHelper.GraphicsContext.CommandList.SetRenderTargetAndViewport(null, thumbnailBuilderHelper.RenderTarget);
 
-                    // Render thumbnail and status sprite
-                    thumbnailBuilderHelper.SpriteBatch.Begin(thumbnailBuilderHelper.GraphicsContext);
-                    thumbnailBuilderHelper.SpriteBatch.Draw(animationPreviewTexture, Vector2.Zero, new Color(0xFF, 0xFF, 0xFF, 0x20));
-                    thumbnailBuilderHelper.SpriteBatch.Draw(generatedThumbnail, Vector2.Zero);
-                    thumbnailBuilderHelper.SpriteBatch.End();
+                // Render thumbnail and status sprite
+                thumbnailBuilderHelper.SpriteBatch.Begin(thumbnailBuilderHelper.GraphicsContext);
+                thumbnailBuilderHelper.SpriteBatch.Draw(animationPreviewTexture, Vector2.Zero, new Color(0xFF, 0xFF, 0xFF, 0x20));
+                thumbnailBuilderHelper.SpriteBatch.Draw(generatedThumbnail, Vector2.Zero);
+                thumbnailBuilderHelper.SpriteBatch.End();
 
-                    thumbnailBuilderHelper.GraphicsDevice.ColorSpace = oldColorSpace;
+                thumbnailBuilderHelper.GraphicsDevice.ColorSpace = oldColorSpace;
 
-                    // Read back result to image
-                    thumbnailBuilderHelper.RenderTarget.GetData(thumbnailBuilderHelper.GraphicsContext.CommandList, thumbnailBuilderHelper.RenderTargetStaging, new DataPointer(image.PixelBuffer[0].DataPointer, image.PixelBuffer[0].BufferStride));
-                    image.Description.Format = thumbnailBuilderHelper.RenderTarget.Format; // In case channels are swapped
-                }
+                // Read back result to image
+                thumbnailBuilderHelper.RenderTarget.GetData(thumbnailBuilderHelper.GraphicsContext.CommandList, thumbnailBuilderHelper.RenderTargetStaging, new DataPointer(image.PixelBuffer[0].DataPointer, image.PixelBuffer[0].BufferStride));
+                image.Description.Format = thumbnailBuilderHelper.RenderTarget.Format; // In case channels are swapped
             }
 
             protected override void PreloadAsset()

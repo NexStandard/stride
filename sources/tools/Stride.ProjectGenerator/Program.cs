@@ -220,15 +220,13 @@ namespace Stride.ProjectGenerator
             try
             {
                 var filePath = Path.Combine(outputDirectory, name);
-                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                bool b;
+                AttachedYamlAssetMetadata o;
+                var asset = AssetFileSerializer.Default.Load(stream, filePath, null, false, out b, out o) as Asset;
+                if (asset != null)
                 {
-                    bool b;
-                    AttachedYamlAssetMetadata o;
-                    var asset = AssetFileSerializer.Default.Load(stream, filePath, null, false, out b, out o) as Asset;
-                    if (asset != null)
-                    {
-                        guid = (Guid)asset.Id;
-                    }
+                    guid = (Guid)asset.Id;
                 }
             }
             catch (Exception)

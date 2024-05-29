@@ -114,17 +114,15 @@ namespace Stride.Graphics.Regression
                 return;
 
             TestGameLogger.Info(@"Saving image");
-            using (var image = textureToSave.GetDataAsImage(GraphicsContext.CommandList))
+            using var image = textureToSave.GetDataAsImage(GraphicsContext.CommandList);
+            try
             {
-                try
-                {
-                    SendImage(image, testName);
-                }
-                catch (Exception)
-                {
-                    TestGameLogger.Error(@"An error occurred when trying to send the data to the server.");
-                    throw;
-                }
+                SendImage(image, testName);
+            }
+            catch (Exception)
+            {
+                TestGameLogger.Error(@"An error occurred when trying to send the data to the server.");
+                throw;
             }
         }
 
@@ -486,13 +484,9 @@ namespace Stride.Graphics.Regression
         {
             if (Platform.Type == PlatformType.Windows)
             {
-                using (var image = texture.GetDataAsImage(GraphicsContext.CommandList))
-                {
-                    using (var resultFileStream = File.OpenWrite(filename))
-                    {
-                        image.Save(resultFileStream, ImageFileType.Png);
-                    }
-                }
+                using var image = texture.GetDataAsImage(GraphicsContext.CommandList);
+                using var resultFileStream = File.OpenWrite(filename);
+                image.Save(resultFileStream, ImageFileType.Png);
             }
         }
 

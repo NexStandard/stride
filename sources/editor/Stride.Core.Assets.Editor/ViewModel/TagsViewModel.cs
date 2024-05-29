@@ -76,18 +76,16 @@ namespace Stride.Core.Assets.Editor.ViewModel
 
             private void RemoveTag()
             {
-                using (var transaction = tags.UndoRedoService.CreateTransaction())
+                using var transaction = tags.UndoRedoService.CreateTransaction();
                 {
-                    {
-                        tags.modifyingTag = true;
-                        string message = $"Remove tag '{Name}' from {(selectedAssetsCount > 1 ? $"{selectedAssetsCount} assets" : Assets.First().Url)}";
+                    tags.modifyingTag = true;
+                    string message = $"Remove tag '{Name}' from {(selectedAssetsCount > 1 ? $"{selectedAssetsCount} assets" : Assets.First().Url)}";
 
-                        while (Assets.Count > 0)
-                            Assets.RemoveAt(Assets.Count - 1);
+                    while (Assets.Count > 0)
+                        Assets.RemoveAt(Assets.Count - 1);
 
-                        tags.modifyingTag = false;
-                        tags.UndoRedoService.SetName(transaction, message);
-                    }
+                    tags.modifyingTag = false;
+                    tags.UndoRedoService.SetName(transaction, message);
                 }
             }
 
@@ -166,29 +164,27 @@ namespace Stride.Core.Assets.Editor.ViewModel
             var singleAsset = assetCollection.SelectedAssets.First();
             var tagViewModel = Tags.FirstOrDefault(x => x.Name == tag);
 
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            int assetCount;
+            modifyingTag = true;
+            if (tagViewModel == null)
             {
-                int assetCount;
-                modifyingTag = true;
-                if (tagViewModel == null)
-                {
-                    tagViewModel = new TagViewModel(this, tag, Enumerable.Empty<AssetViewModel>(), assetCollection.SelectedAssets.Count);
-                    // We had the assets to the tag after construction to ensure they will create an operation for the undo stack.
-                    tagViewModel.Assets.AddRange(assetCollection.SelectedAssets);
-                    assetCount = assetCollection.SelectedAssets.Count;
-                    Tags.Add(tagViewModel);
-                }
-                else
-                {
-                    var assetsToAdd = assetCollection.SelectedAssets.Where(x => !tagViewModel.Assets.Contains(x)).ToList();
-                    assetCount = assetsToAdd.Count;
-                    tagViewModel.Assets.AddRange(assetsToAdd);
-                }
-
-                string message = $"Added tag '{tag}' to {(assetCount > 1 ? $"{assetCount} assets" : singleAsset.Url)}";
-                modifyingTag = false;
-                UndoRedoService.SetName(transaction, message);
+                tagViewModel = new TagViewModel(this, tag, Enumerable.Empty<AssetViewModel>(), assetCollection.SelectedAssets.Count);
+                // We had the assets to the tag after construction to ensure they will create an operation for the undo stack.
+                tagViewModel.Assets.AddRange(assetCollection.SelectedAssets);
+                assetCount = assetCollection.SelectedAssets.Count;
+                Tags.Add(tagViewModel);
             }
+            else
+            {
+                var assetsToAdd = assetCollection.SelectedAssets.Where(x => !tagViewModel.Assets.Contains(x)).ToList();
+                assetCount = assetsToAdd.Count;
+                tagViewModel.Assets.AddRange(assetsToAdd);
+            }
+
+            string message = $"Added tag '{tag}' to {(assetCount > 1 ? $"{assetCount} assets" : singleAsset.Url)}";
+            modifyingTag = false;
+            UndoRedoService.SetName(transaction, message);
         }
 
         private void RefreshTags()

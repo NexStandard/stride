@@ -30,36 +30,34 @@ namespace Stride.Graphics.Data
                     texturesStreamingProvider?.UnregisterTexture(texture);
 
                     // TODO: Error handling?
-                    using (var textureData = Image.Load(stream.UnderlyingStream))
+                    using var textureData = Image.Load(stream.UnderlyingStream);
+                    if (texture.GraphicsDevice != null)
+                        texture.OnDestroyed(); //Allows fast reloading todo review maybe?
+
+                    texture.AttachToGraphicsDevice(graphicsDeviceService.GraphicsDevice);
+                    texture.InitializeFrom(textureData.Description, new TextureViewDescription(), textureData.ToDataBox());
+
+                    // Setup reload callback (reload from asset manager)
+                    var contentSerializerContext = stream.Context.Get(ContentSerializerContext.ContentSerializerContextProperty);
+                    if (contentSerializerContext != null)
                     {
-                        if (texture.GraphicsDevice != null)
-                            texture.OnDestroyed(); //Allows fast reloading todo review maybe?
-
-                        texture.AttachToGraphicsDevice(graphicsDeviceService.GraphicsDevice);
-                        texture.InitializeFrom(textureData.Description, new TextureViewDescription(), textureData.ToDataBox());
-
-                        // Setup reload callback (reload from asset manager)
-                        var contentSerializerContext = stream.Context.Get(ContentSerializerContext.ContentSerializerContextProperty);
-                        if (contentSerializerContext != null)
+                        texture.Reload = static (graphicsResource, services) =>
                         {
-                            texture.Reload = static (graphicsResource, services) =>
-                            {
-                                var assetManager = services.GetService<ContentManager>();
-                                assetManager.TryGetAssetUrl(graphicsResource, out var url);
-                                var textureDataReloaded = assetManager.Load<object>(url);
+                            var assetManager = services.GetService<ContentManager>();
+                            assetManager.TryGetAssetUrl(graphicsResource, out var url);
+                            var textureDataReloaded = assetManager.Load<object>(url);
 
-                                if (textureDataReloaded is Image image)
-                                {
-                                    ((Texture)graphicsResource).Recreate(image.ToDataBox());
-                                    assetManager.Unload(textureDataReloaded);
-                                }
-                                else if (textureDataReloaded is Texture)
-                                {
-                                    ((Texture)graphicsResource).Recreate();
-                                    assetManager.Unload(textureDataReloaded);
-                                }
-                            };
-                        }
+                            if (textureDataReloaded is Image image)
+                            {
+                                ((Texture)graphicsResource).Recreate(image.ToDataBox());
+                                assetManager.Unload(textureDataReloaded);
+                            }
+                            else if (textureDataReloaded is Texture)
+                            {
+                                ((Texture)graphicsResource).Recreate();
+                                assetManager.Unload(textureDataReloaded);
+                            }
+                        };
                     }
                 }
                 else
@@ -84,13 +82,11 @@ namespace Stride.Graphics.Data
                         // Load initial texture (with limited number of mipmaps)
                         if (storageHeader.InitialImage)
                         {
-                            using (var textureData = Image.Load(stream.UnderlyingStream))
-                            {
-                                if (texture.GraphicsDevice != null)
-                                    texture.OnDestroyed(); //Allows fast reloading todo review maybe?
+                            using var textureData = Image.Load(stream.UnderlyingStream);
+                            if (texture.GraphicsDevice != null)
+                                texture.OnDestroyed(); //Allows fast reloading todo review maybe?
 
-                                texture.InitializeFrom(textureData.Description, new TextureViewDescription(), textureData.ToDataBox());
-                            }
+                            texture.InitializeFrom(textureData.Description, new TextureViewDescription(), textureData.ToDataBox());
                         }
 
                         if (allowContentStreaming)
@@ -111,9 +107,7 @@ namespace Stride.Graphics.Data
                         // Load initial texture and discard it (we are going to load the full chunk texture right after)
                         if (storageHeader.InitialImage)
                         {
-                            using (var textureData = Image.Load(stream.UnderlyingStream))
-                            {
-                            }
+                            using var textureData = Image.Load(stream.UnderlyingStream);
                         }
 
                         // Deserialize whole texture without streaming feature
@@ -139,60 +133,58 @@ namespace Stride.Graphics.Data
 
         private static void DeserializeTexture(ContentManager contentManager, Texture texture, ref ImageDescription imageDescription, ref ContentStorageHeader storageHeader)
         {
-            using (var content = new ContentStreamingService())
+            using var content = new ContentStreamingService();
+            // Get content storage container
+            var storage = content.GetStorage(ref storageHeader);
+            if (storage == null)
+                throw new ContentStreamingException("Missing content storage.");
+            storage.LockChunks();
+
+            // Cache data
+            var fileProvider = contentManager.FileProvider;
+            var format = imageDescription.Format;
+            bool isBlockCompressed =
+                (format >= PixelFormat.BC1_Typeless && format <= PixelFormat.BC5_SNorm) ||
+                (format >= PixelFormat.BC6H_Typeless && format <= PixelFormat.BC7_UNorm_SRgb);
+            var dataBoxes = new DataBox[imageDescription.MipLevels * imageDescription.ArraySize];
+            int dataBoxIndex = 0;
+
+            // Get data boxes data
+            for (int arrayIndex = 0; arrayIndex < imageDescription.ArraySize; arrayIndex++)
             {
-                // Get content storage container
-                var storage = content.GetStorage(ref storageHeader);
-                if (storage == null)
-                    throw new ContentStreamingException("Missing content storage.");
-                storage.LockChunks();
-
-                // Cache data
-                var fileProvider = contentManager.FileProvider;
-                var format = imageDescription.Format;
-                bool isBlockCompressed =
-                    (format >= PixelFormat.BC1_Typeless && format <= PixelFormat.BC5_SNorm) ||
-                    (format >= PixelFormat.BC6H_Typeless && format <= PixelFormat.BC7_UNorm_SRgb);
-                var dataBoxes = new DataBox[imageDescription.MipLevels * imageDescription.ArraySize];
-                int dataBoxIndex = 0;
-
-                // Get data boxes data
-                for (int arrayIndex = 0; arrayIndex < imageDescription.ArraySize; arrayIndex++)
+                for (int mipIndex = 0; mipIndex < imageDescription.MipLevels; mipIndex++)
                 {
-                    for (int mipIndex = 0; mipIndex < imageDescription.MipLevels; mipIndex++)
+                    int mipWidth = imageDescription.Width >> mipIndex;
+                    int mipHeight = imageDescription.Height >> mipIndex;
+                    if (isBlockCompressed && ((mipWidth % 4) != 0 || (mipHeight % 4) != 0))
                     {
-                        int mipWidth = imageDescription.Width >> mipIndex;
-                        int mipHeight = imageDescription.Height >> mipIndex;
-                        if (isBlockCompressed && ((mipWidth % 4) != 0 || (mipHeight % 4) != 0))
-                        {
-                            mipWidth = unchecked((int)(((uint)(mipWidth + 3)) & ~3U));
-                            mipHeight = unchecked((int)(((uint)(mipHeight + 3)) & ~3U));
-                        }
-
-                        int rowPitch, slicePitch;
-                        int widthPacked;
-                        int heightPacked;
-                        Image.ComputePitch(format, mipWidth, mipHeight, out rowPitch, out slicePitch, out widthPacked, out heightPacked);
-
-                        var chunk = storage.GetChunk(mipIndex);
-                        if (chunk == null || chunk.Size != slicePitch * imageDescription.ArraySize)
-                            throw new ContentStreamingException("Data chunk is missing or has invalid size.", storage);
-                        var data = chunk.GetData(fileProvider);
-                        if (!chunk.IsLoaded)
-                            throw new ContentStreamingException("Data chunk is not loaded.", storage);
-
-                        dataBoxes[dataBoxIndex].DataPointer = data + slicePitch * arrayIndex;
-                        dataBoxes[dataBoxIndex].RowPitch = rowPitch;
-                        dataBoxes[dataBoxIndex].SlicePitch = slicePitch;
-                        dataBoxIndex++;
+                        mipWidth = unchecked((int)(((uint)(mipWidth + 3)) & ~3U));
+                        mipHeight = unchecked((int)(((uint)(mipHeight + 3)) & ~3U));
                     }
+
+                    int rowPitch, slicePitch;
+                    int widthPacked;
+                    int heightPacked;
+                    Image.ComputePitch(format, mipWidth, mipHeight, out rowPitch, out slicePitch, out widthPacked, out heightPacked);
+
+                    var chunk = storage.GetChunk(mipIndex);
+                    if (chunk == null || chunk.Size != slicePitch * imageDescription.ArraySize)
+                        throw new ContentStreamingException("Data chunk is missing or has invalid size.", storage);
+                    var data = chunk.GetData(fileProvider);
+                    if (!chunk.IsLoaded)
+                        throw new ContentStreamingException("Data chunk is not loaded.", storage);
+
+                    dataBoxes[dataBoxIndex].DataPointer = data + slicePitch * arrayIndex;
+                    dataBoxes[dataBoxIndex].RowPitch = rowPitch;
+                    dataBoxes[dataBoxIndex].SlicePitch = slicePitch;
+                    dataBoxIndex++;
                 }
-
-                // Initialize texture
-                texture.InitializeFrom(imageDescription, new TextureViewDescription(), dataBoxes);
-
-                storage.UnlockChunks();
             }
+
+            // Initialize texture
+            texture.InitializeFrom(imageDescription, new TextureViewDescription(), dataBoxes);
+
+            storage.UnlockChunks();
         }
     }
 }

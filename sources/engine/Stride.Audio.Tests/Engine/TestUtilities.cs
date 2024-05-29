@@ -22,16 +22,14 @@ namespace Stride.Audio.Tests.Engine
         /// <param name="onAfterDraw">The callback that will be called before each <see cref="GameBase.Draw"/> calls.</param>
         static public void CreateAndRunGame(Action<Game> onLoad, Action<Game> onBeforeUpdate, Action<Game> onAfterUpdate = null, Action<Game> onBeforeDraw = null, Action<Game> onAfterDraw = null)
         {
-            using (var game = new GameClassForTests())
-            {
-                game.LoadingContent += onLoad;
-                game.BeforeUpdating += onBeforeUpdate;
-                game.AfterUpdating += onAfterUpdate;
-                game.BeforeDrawing += onBeforeDraw;
-                game.AfterDrawing += onAfterDraw;
+            using var game = new GameClassForTests();
+            game.LoadingContent += onLoad;
+            game.BeforeUpdating += onBeforeUpdate;
+            game.AfterUpdating += onAfterUpdate;
+            game.BeforeDrawing += onBeforeDraw;
+            game.AfterDrawing += onAfterDraw;
 
-                game.Run();
-            }
+            game.Run();
         }
 
         /// <summary>

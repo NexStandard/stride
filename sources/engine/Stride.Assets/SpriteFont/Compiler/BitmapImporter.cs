@@ -150,32 +150,30 @@ namespace Stride.Assets.SpriteFont.Compiler
         // Searches a 2D bitmap for characters that are surrounded by a marker pink color.
         static IEnumerable<Rectangle> FindGlyphs(Bitmap bitmap)
         {
-            using (var bitmapData = new BitmapUtils.PixelAccessor(bitmap, ImageLockMode.ReadOnly))
+            using var bitmapData = new BitmapUtils.PixelAccessor(bitmap, ImageLockMode.ReadOnly);
+            for (int y = 1; y < bitmap.Height; y++)
             {
-                for (int y = 1; y < bitmap.Height; y++)
+                for (int x = 1; x < bitmap.Width; x++)
                 {
-                    for (int x = 1; x < bitmap.Width; x++)
+                    // Look for the top left corner of a character (a pixel that is not pink, but was pink immediately to the left and above it)
+                    if (!IsMarkerColor(bitmapData[x, y]) &&
+                         IsMarkerColor(bitmapData[x - 1, y]) &&
+                         IsMarkerColor(bitmapData[x, y - 1]))
                     {
-                        // Look for the top left corner of a character (a pixel that is not pink, but was pink immediately to the left and above it)
-                        if (!IsMarkerColor(bitmapData[x, y]) &&
-                             IsMarkerColor(bitmapData[x - 1, y]) &&
-                             IsMarkerColor(bitmapData[x, y - 1]))
+                        // Measure the size of this character.
+                        int w = 1, h = 1;
+
+                        while ((x + w < bitmap.Width) && !IsMarkerColor(bitmapData[x + w, y]))
                         {
-                            // Measure the size of this character.
-                            int w = 1, h = 1;
-
-                            while ((x + w < bitmap.Width) && !IsMarkerColor(bitmapData[x + w, y]))
-                            {
-                                w++;
-                            }
-
-                            while ((y + h < bitmap.Height) && !IsMarkerColor(bitmapData[x, y + h]))
-                            {
-                                h++;
-                            }
-
-                            yield return new Rectangle(x, y, w, h);
+                            w++;
                         }
+
+                        while ((y + h < bitmap.Height) && !IsMarkerColor(bitmapData[x, y + h]))
+                        {
+                            h++;
+                        }
+
+                        yield return new Rectangle(x, y, w, h);
                     }
                 }
             }

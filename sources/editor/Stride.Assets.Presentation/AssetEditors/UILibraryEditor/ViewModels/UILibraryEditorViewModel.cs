@@ -122,31 +122,29 @@ namespace Stride.Assets.Presentation.AssetEditors.UILibraryEditor.ViewModels
             var node = NodeContainer.GetNode((UILibraryAsset)Asset.Asset)[nameof(UILibraryAsset.PublicUIElements)].Target;
             var index = new NodeIndex(rootId);
 
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            // update UILibraryAsset's PublicUIElements collection
+            if (string.IsNullOrWhiteSpace(name))
             {
-                // update UILibraryAsset's PublicUIElements collection
-                if (string.IsNullOrWhiteSpace(name))
+                // Remove the entry if it exists
+                if (node.Indices.Contains(index))
                 {
-                    // Remove the entry if it exists
-                    if (node.Indices.Contains(index))
-                    {
-                        node.Remove(name, index);
-                        UndoRedoService.SetName(transaction, $"Remove '{name}' export from the UILibrary");
-                    }
+                    node.Remove(name, index);
+                    UndoRedoService.SetName(transaction, $"Remove '{name}' export from the UILibrary");
+                }
+            }
+            else
+            {
+                if (!node.Indices.Contains(index))
+                {
+                    // Note: update would probably work, but we want to remove the item when Undo
+                    node.Add(name, index);
+                    UndoRedoService.SetName(transaction, $"Add '{name}' export to the UILibrary");
                 }
                 else
                 {
-                    if (!node.Indices.Contains(index))
-                    {
-                        // Note: update would probably work, but we want to remove the item when Undo
-                        node.Add(name, index);
-                        UndoRedoService.SetName(transaction, $"Add '{name}' export to the UILibrary");
-                    }
-                    else
-                    {
-                        node.Update(name, index);
-                        UndoRedoService.SetName(transaction, "Update name of export in the UILibrary");
-                    }
+                    node.Update(name, index);
+                    UndoRedoService.SetName(transaction, "Update name of export in the UILibrary");
                 }
             }
         }

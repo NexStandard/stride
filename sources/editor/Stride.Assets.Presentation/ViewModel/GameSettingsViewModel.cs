@@ -37,22 +37,20 @@ namespace Stride.Assets.Presentation.ViewModel
             if (e.ChangeType == ContentChangeType.CollectionUpdate)
             {
                 var index = e.Index.Int;
-                using (var transaction = UndoRedoService.CreateTransaction())
+                using var transaction = UndoRedoService.CreateTransaction();
+                foreach (var platformOverride in Asset.Overrides)
                 {
-                    foreach (var platformOverride in Asset.Overrides)
-                    {
-                        var node = Session.AssetNodeContainer.GetNode(platformOverride);
-                        var filterNode = node[nameof(ConfigurationOverride.SpecificFilter)];
+                    var node = Session.AssetNodeContainer.GetNode(platformOverride);
+                    var filterNode = node[nameof(ConfigurationOverride.SpecificFilter)];
 
-                        if (platformOverride.SpecificFilter == index)
-                        {
-                            // This is a hack to force refreshing the display of the filter in override. We clear and reset it before and after the name change.
-                            filterNode.Update(-1);
-                            filterNode.Update(index);
-                        }
+                    if (platformOverride.SpecificFilter == index)
+                    {
+                        // This is a hack to force refreshing the display of the filter in override. We clear and reset it before and after the name change.
+                        filterNode.Update(-1);
+                        filterNode.Update(index);
                     }
-                    UndoRedoService.SetName(transaction, "Force filter refresh");
                 }
+                UndoRedoService.SetName(transaction, "Force filter refresh");
             }
         }
 

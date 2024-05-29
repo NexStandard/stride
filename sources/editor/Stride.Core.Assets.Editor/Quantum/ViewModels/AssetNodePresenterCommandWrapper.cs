@@ -30,14 +30,12 @@ namespace Stride.Core.Assets.Editor.Quantum.ViewModels
         public override async Task Invoke(object parameter)
         {
             var undoRedoService = ServiceProvider.TryGet<IUndoRedoService>();
-            using (var transaction = undoRedoService?.CreateTransaction())
-            {
-                await base.Invoke(parameter);
+            using var transaction = undoRedoService?.CreateTransaction();
+            await base.Invoke(parameter);
 
-                if (transaction != null)
-                {
-                    undoRedoService.SetName(transaction, ActionName);
-                }
+            if (transaction != null)
+            {
+                undoRedoService.SetName(transaction, ActionName);
             }
         }
     }

@@ -75,10 +75,8 @@ namespace Stride.Core.Serialization.Contents
 
             lock (LoadedAssetUrls)
             {
-                using (var profile = Profiler.Begin(ContentProfilingKeys.ContentSave))
-                {
-                    SerializeObject(url, asset, true, storageType);
-                }
+                using var profile = Profiler.Begin(ContentProfilingKeys.ContentSave);
+                SerializeObject(url, asset, true, storageType);
             }
         }
 
@@ -131,10 +129,8 @@ namespace Stride.Core.Serialization.Contents
 
             lock (LoadedAssetUrls)
             {
-                using (var profile = Profiler.Begin(ContentProfilingKeys.ContentLoad, url))
-                {
-                    return DeserializeObject(url, url, type, null, settings);
-                }
+                using var profile = Profiler.Begin(ContentProfilingKeys.ContentLoad, url);
+                return DeserializeObject(url, url, type, null, settings);
             }
         }
 
@@ -451,17 +447,15 @@ namespace Stride.Core.Serialization.Contents
                 return null;
             }
 
-            using (var stream = FileProvider.OpenStream(url, VirtualFileMode.Open, VirtualFileAccess.Read))
-            {
-                // File does not exist
-                // TODO/Benlitz: Add a log entry for that, it's not expected to happen
-                if (stream == null)
-                    return null;
+            using var stream = FileProvider.OpenStream(url, VirtualFileMode.Open, VirtualFileAccess.Read);
+            // File does not exist
+            // TODO/Benlitz: Add a log entry for that, it's not expected to happen
+            if (stream == null)
+                return null;
 
-                // Read header
-                var streamReader = new BinarySerializationReader(stream);
-                return ChunkHeader.Read(streamReader);
-            }
+            // Read header
+            var streamReader = new BinarySerializationReader(stream);
+            return ChunkHeader.Read(streamReader);
         }
 
         private object DeserializeObject(Queue<DeserializeOperation> serializeOperations, Reference parentReference, string url, Type objType, object obj, ContentManagerLoaderSettings settings)
@@ -499,63 +493,61 @@ namespace Stride.Core.Serialization.Contents
             // Open asset binary stream
             try
             {
-                using (var stream = FileProvider.OpenStream(url, VirtualFileMode.Open, VirtualFileAccess.Read))
+                using var stream = FileProvider.OpenStream(url, VirtualFileMode.Open, VirtualFileAccess.Read);
+                // File does not exist
+                // TODO/Benlitz: Add a log entry for that, it's not expected to happen
+                if (stream == null)
+                    return null;
+
+                Type headerObjType = null;
+
+                // Read header
+                var streamReader = new BinarySerializationReader(stream);
+                var chunkHeader = ChunkHeader.Read(streamReader);
+                if (chunkHeader != null)
                 {
-                    // File does not exist
-                    // TODO/Benlitz: Add a log entry for that, it's not expected to happen
-                    if (stream == null)
-                        return null;
-
-                    Type headerObjType = null;
-
-                    // Read header
-                    var streamReader = new BinarySerializationReader(stream);
-                    var chunkHeader = ChunkHeader.Read(streamReader);
-                    if (chunkHeader != null)
-                    {
-                        headerObjType = AssemblyRegistry.GetType(chunkHeader.Type);
-                    }
-
-                    // Find serializer
-                    var serializer = Serializer.GetSerializer(headerObjType, objType);
-                    if (serializer == null)
-                        throw new InvalidOperationException($"Content serializer for {url} could not be found. Was expecting to find type {objType} but the actual type of the resource was {headerObjType}");
-                    contentSerializerContext = new ContentSerializerContext(url, ArchiveMode.Deserialize, this)
-                    {
-                        LoadContentReferences = settings.LoadContentReferences,
-                        AllowContentStreaming = settings.AllowContentStreaming,
-                    };
-
-                    // Read chunk references
-                    if (chunkHeader != null && chunkHeader.OffsetToReferences != -1)
-                    {
-                        // Seek to where references are stored and deserialize them
-                        streamReader.UnderlyingStream.Seek(chunkHeader.OffsetToReferences, SeekOrigin.Begin);
-                        contentSerializerContext.SerializeReferences(streamReader);
-                        streamReader.UnderlyingStream.Seek(chunkHeader.OffsetToObject, SeekOrigin.Begin);
-                    }
-
-                    if (reference == null)
-                    {
-                        // Create Reference
-                        reference = new Reference(url, parentReference == null);
-                        result = obj ?? serializer.Construct(contentSerializerContext);
-                        SetAssetObject(reference, result);
-                    }
-                    else
-                    {
-                        result = reference.Object;
-                    }
-
-                    reference.Deserialized = true;
-
-                    PrepareSerializerContext(contentSerializerContext, streamReader.Context);
-
-                    contentSerializerContext.SerializeContent(streamReader, serializer, result);
-
-                    // Add reference
-                    parentReference?.References.Add(reference);
+                    headerObjType = AssemblyRegistry.GetType(chunkHeader.Type);
                 }
+
+                // Find serializer
+                var serializer = Serializer.GetSerializer(headerObjType, objType);
+                if (serializer == null)
+                    throw new InvalidOperationException($"Content serializer for {url} could not be found. Was expecting to find type {objType} but the actual type of the resource was {headerObjType}");
+                contentSerializerContext = new ContentSerializerContext(url, ArchiveMode.Deserialize, this)
+                {
+                    LoadContentReferences = settings.LoadContentReferences,
+                    AllowContentStreaming = settings.AllowContentStreaming,
+                };
+
+                // Read chunk references
+                if (chunkHeader != null && chunkHeader.OffsetToReferences != -1)
+                {
+                    // Seek to where references are stored and deserialize them
+                    streamReader.UnderlyingStream.Seek(chunkHeader.OffsetToReferences, SeekOrigin.Begin);
+                    contentSerializerContext.SerializeReferences(streamReader);
+                    streamReader.UnderlyingStream.Seek(chunkHeader.OffsetToObject, SeekOrigin.Begin);
+                }
+
+                if (reference == null)
+                {
+                    // Create Reference
+                    reference = new Reference(url, parentReference == null);
+                    result = obj ?? serializer.Construct(contentSerializerContext);
+                    SetAssetObject(reference, result);
+                }
+                else
+                {
+                    result = reference.Object;
+                }
+
+                reference.Deserialized = true;
+
+                PrepareSerializerContext(contentSerializerContext, streamReader.Context);
+
+                contentSerializerContext.SerializeContent(streamReader, serializer, result);
+
+                // Add reference
+                parentReference?.References.Add(reference);
             }
             catch (Exception exception)
             {

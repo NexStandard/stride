@@ -63,46 +63,44 @@ namespace Stride.Assets.Presentation.AssetEditors.EntityHierarchyEditor.ViewMode
         private async Task RebuildLightProbes(int bounces)
         {
             // Reset values
-            using (var transaction = editor.UndoRedoService.CreateTransaction())
+            using var transaction = editor.UndoRedoService.CreateTransaction();
+            foreach (var entity in editor.HierarchyRoot.Children.SelectDeep(x => x.Children).OfType<EntityViewModel>())
             {
-                foreach (var entity in editor.HierarchyRoot.Children.SelectDeep(x => x.Children).OfType<EntityViewModel>())
+                foreach (var lightProbe in entity.Components.OfType<LightProbeComponent>())
                 {
-                    foreach (var lightProbe in entity.Components.OfType<LightProbeComponent>())
+                    // Find this light probe in Quantum
+                    var assetNode = editor.NodeContainer.GetOrCreateNode(lightProbe);
+                    var zeroCoefficients = new FastList<Color3>();
+                    for (int i = 0; i < LightProbeGenerator.LambertHamonicOrder * LightProbeGenerator.LambertHamonicOrder; ++i)
+                        zeroCoefficients.Add(default(Color3));
+                    assetNode[nameof(LightProbeComponent.Coefficients)].Update(zeroCoefficients);
+                }
+            }
+
+            // Update coefficients (just updated to zero)
+            await LightProbeService.UpdateLightProbeCoefficients();
+
+            for (int bounce = 0; bounce < bounces; ++bounce)
+            {
+                // Compute coefficients
+                var result = await LightProbeService.RequestLightProbesStep();
+
+                // Copy coefficients back to view model
+                editor.UndoRedoService.SetName(transaction, "Capture LightProbes");
+                foreach (var entity in editor.HierarchyRoot.Children.SelectDeep(x => x.Children).OfType<EntityViewModel>().Where(x => result.ContainsKey(x.AssetSideEntity.Id)))
+                {
+                    // TODO: Use LightProbe Id instead of entity id once copy/paste and duplicate properly remap them
+                    var matchingLightProbe = entity.Components.OfType<LightProbeComponent>().FirstOrDefault();
+                    if (matchingLightProbe != null)
                     {
                         // Find this light probe in Quantum
-                        var assetNode = editor.NodeContainer.GetOrCreateNode(lightProbe);
-                        var zeroCoefficients = new FastList<Color3>();
-                        for (int i = 0; i < LightProbeGenerator.LambertHamonicOrder * LightProbeGenerator.LambertHamonicOrder; ++i)
-                            zeroCoefficients.Add(default(Color3));
-                        assetNode[nameof(LightProbeComponent.Coefficients)].Update(zeroCoefficients);
+                        var assetNode = editor.NodeContainer.GetOrCreateNode(matchingLightProbe);
+                        assetNode[nameof(LightProbeComponent.Coefficients)].Update(result[matchingLightProbe.Entity.Id]);
                     }
                 }
 
-                // Update coefficients (just updated to zero)
+                // Update coefficients
                 await LightProbeService.UpdateLightProbeCoefficients();
-
-                for (int bounce = 0; bounce < bounces; ++bounce)
-                {
-                    // Compute coefficients
-                    var result = await LightProbeService.RequestLightProbesStep();
-
-                    // Copy coefficients back to view model
-                    editor.UndoRedoService.SetName(transaction, "Capture LightProbes");
-                    foreach (var entity in editor.HierarchyRoot.Children.SelectDeep(x => x.Children).OfType<EntityViewModel>().Where(x => result.ContainsKey(x.AssetSideEntity.Id)))
-                    {
-                        // TODO: Use LightProbe Id instead of entity id once copy/paste and duplicate properly remap them
-                        var matchingLightProbe = entity.Components.OfType<LightProbeComponent>().FirstOrDefault();
-                        if (matchingLightProbe != null)
-                        {
-                            // Find this light probe in Quantum
-                            var assetNode = editor.NodeContainer.GetOrCreateNode(matchingLightProbe);
-                            assetNode[nameof(LightProbeComponent.Coefficients)].Update(result[matchingLightProbe.Entity.Id]);
-                        }
-                    }
-
-                    // Update coefficients
-                    await LightProbeService.UpdateLightProbeCoefficients();
-                }
             }
         }
 

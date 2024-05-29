@@ -95,20 +95,18 @@ namespace Stride.Shaders.Compiler
                 // ------------------------------------------------------------------------------------------------------------
                 if (bytecode.Key == null && database.ObjectDatabase.Exists(mixinObjectId))
                 {
-                    using (var stream = database.ObjectDatabase.OpenStream(mixinObjectId))
+                    using var stream = database.ObjectDatabase.OpenStream(mixinObjectId);
+                    // We have an existing stream, make sure the shader is compiled
+                    var objectIdBuffer = new byte[ObjectId.HashSize];
+                    if (stream.Read(objectIdBuffer, 0, ObjectId.HashSize) == ObjectId.HashSize)
                     {
-                        // We have an existing stream, make sure the shader is compiled
-                        var objectIdBuffer = new byte[ObjectId.HashSize];
-                        if (stream.Read(objectIdBuffer, 0, ObjectId.HashSize) == ObjectId.HashSize)
-                        {
-                            var newBytecodeId = new ObjectId(objectIdBuffer);
-                            bytecode = LoadEffectBytecode(database, newBytecodeId);
+                        var newBytecodeId = new ObjectId(objectIdBuffer);
+                        bytecode = LoadEffectBytecode(database, newBytecodeId);
 
-                            if (bytecode.Key != null)
-                            {
-                                // If we successfully retrieved it from cache, add it to index map so that it won't be collected and available for faster lookup 
-                                database.ContentIndexMap[compiledUrl] = newBytecodeId;
-                            }
+                        if (bytecode.Key != null)
+                        {
+                            // If we successfully retrieved it from cache, add it to index map so that it won't be collected and available for faster lookup 
+                            database.ContentIndexMap[compiledUrl] = newBytecodeId;
                         }
                     }
                 }
@@ -222,19 +220,17 @@ namespace Stride.Shaders.Compiler
             {
                 if (!bytecodesByPassingStorage.Contains(bytecodeId) && database.ObjectDatabase.Exists(bytecodeId))
                 {
-                    using (var stream = database.ObjectDatabase.OpenStream(bytecodeId))
-                    {
-                        var bytecode = EffectBytecode.FromStream(stream);
+                    using var stream = database.ObjectDatabase.OpenStream(bytecodeId);
+                    var bytecode = EffectBytecode.FromStream(stream);
 
-                        // Try to read an integer that would specify what kind of cache it belongs to (if undefined because of old versions, mark it as dynamic cache)
-                        var cacheSource = EffectBytecodeCacheLoadSource.DynamicCache;
-                        if (stream.Position < stream.Length)
-                        {
-                            var binaryReader = new BinarySerializationReader(stream);
-                            cacheSource = (EffectBytecodeCacheLoadSource)binaryReader.ReadInt32();
-                        }
-                        bytecodePair = new KeyValuePair<EffectBytecode, EffectBytecodeCacheLoadSource>(bytecode, cacheSource);
+                    // Try to read an integer that would specify what kind of cache it belongs to (if undefined because of old versions, mark it as dynamic cache)
+                    var cacheSource = EffectBytecodeCacheLoadSource.DynamicCache;
+                    if (stream.Position < stream.Length)
+                    {
+                        var binaryReader = new BinarySerializationReader(stream);
+                        cacheSource = (EffectBytecodeCacheLoadSource)binaryReader.ReadInt32();
                     }
+                    bytecodePair = new KeyValuePair<EffectBytecode, EffectBytecodeCacheLoadSource>(bytecode, cacheSource);
                 }
                 if (bytecodePair.Key != null)
                 {

@@ -45,12 +45,10 @@ namespace Stride.Core.Collections
             {
                 size = 0;
                 items = new T[DefaultCapacity];
-                using (var enumerator = collection.GetEnumerator())
+                using var enumerator = collection.GetEnumerator();
+                while (enumerator.MoveNext())
                 {
-                    while (enumerator.MoveNext())
-                    {
-                        Add(enumerator.Current);
-                    }
+                    Add(enumerator.Current);
                 }
             }
         }

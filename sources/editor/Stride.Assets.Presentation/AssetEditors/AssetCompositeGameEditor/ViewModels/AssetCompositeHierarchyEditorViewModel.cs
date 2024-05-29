@@ -201,15 +201,13 @@ namespace Stride.Assets.Presentation.AssetEditors.AssetCompositeGameEditor.ViewM
 
         protected void BreakLinkToBase(string baseTypeName = "base")
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            // Break links to the base for selected parts of their respective asset.
+            foreach (var grp in SelectedItems.GroupBy(e => (AssetCompositeHierarchyViewModel<TAssetPartDesign, TAssetPart>)e.Asset))
             {
-                // Break links to the base for selected parts of their respective asset.
-                foreach (var grp in SelectedItems.GroupBy(e => (AssetCompositeHierarchyViewModel<TAssetPartDesign, TAssetPart>)e.Asset))
-                {
-                    grp.Key.AssetHierarchyPropertyGraph.BreakBasePartLinks(grp.Select(x => x.PartDesign));
-                }
-                UndoRedoService.SetName(transaction, $"Break link to {baseTypeName}");
+                grp.Key.AssetHierarchyPropertyGraph.BreakBasePartLinks(grp.Select(x => x.PartDesign));
             }
+            UndoRedoService.SetName(transaction, $"Break link to {baseTypeName}");
         }
 
         /// <summary>
@@ -409,27 +407,25 @@ namespace Stride.Assets.Presentation.AssetEditors.AssetCompositeGameEditor.ViewM
         /// <returns>A <see cref="Task"/> that can be awaited until the operation completes.</returns>
         protected virtual async Task Paste(bool asRoot)
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            string actionName;
+            if (asRoot)
             {
-                string actionName;
-                if (asRoot)
-                {
-                    // Attempt to paste at the root level
-                    await PasteIntoItems(RootPart.Yield());
-                    actionName = $"Paste into {Asset.Name}";
-                }
-                else
-                {
-                    var selectedItems = SelectedContent.OfType<AssetCompositeItemViewModel>().ToList();
-                    if (selectedItems.Count == 0)
-                        return;
-                    // Attempt to paste into the selected items
-                    await PasteIntoItems(selectedItems);
-                    actionName = "Paste into selection";
-                }
-
-                UndoRedoService.SetName(transaction, actionName);
+                // Attempt to paste at the root level
+                await PasteIntoItems(RootPart.Yield());
+                actionName = $"Paste into {Asset.Name}";
             }
+            else
+            {
+                var selectedItems = SelectedContent.OfType<AssetCompositeItemViewModel>().ToList();
+                if (selectedItems.Count == 0)
+                    return;
+                // Attempt to paste into the selected items
+                await PasteIntoItems(selectedItems);
+                actionName = "Paste into selection";
+            }
+
+            UndoRedoService.SetName(transaction, actionName);
         }
 
         /// <summary>
@@ -595,18 +591,16 @@ namespace Stride.Assets.Presentation.AssetEditors.AssetCompositeGameEditor.ViewM
             }).ToList();
             // Clear the selection
             ClearSelection();
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                CopyToClipboard(items);
+            using var transaction = UndoRedoService.CreateTransaction();
+            CopyToClipboard(items);
 
-                // We don't use DeletePart but rather RemovePartFromAsset so references to the cut element won't be cleared.
-                // Then, if we paste into the same asset, they will be automagically restored.
-                foreach (var item in items.SelectMany(x => x.commonParts).DepthFirst(x => x.EnumerateChildren().OfType<TItemViewModel>()).Reverse())
-                {
-                    ((AssetCompositeHierarchyPropertyGraph<TAssetPartDesign, TAssetPart>)item.Asset.PropertyGraph).RemovePartFromAsset(item.PartDesign);
-                }
-                UndoRedoService.SetName(transaction, "Cut selection");
+            // We don't use DeletePart but rather RemovePartFromAsset so references to the cut element won't be cleared.
+            // Then, if we paste into the same asset, they will be automagically restored.
+            foreach (var item in items.SelectMany(x => x.commonParts).DepthFirst(x => x.EnumerateChildren().OfType<TItemViewModel>()).Reverse())
+            {
+                ((AssetCompositeHierarchyPropertyGraph<TAssetPartDesign, TAssetPart>)item.Asset.PropertyGraph).RemovePartFromAsset(item.PartDesign);
             }
+            UndoRedoService.SetName(transaction, "Cut selection");
         }
 
         /// <summary>

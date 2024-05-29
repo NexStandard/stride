@@ -788,102 +788,100 @@ MinimumVisualStudioVersion = {0}".ToFormat(DefaultVisualStudioVersion);
                 // Enable reference analysis caching during loading
                 AssetReferenceAnalysis.EnableCaching = true;
 
-                using (var profile = Profiler.Begin(PackageSessionProfilingKeys.Loading))
+                using var profile = Profiler.Begin(PackageSessionProfilingKeys.Loading);
+                sessionResult.Clear();
+                sessionResult.Progress("Loading..", 0, 1);
+
+                var session = new PackageSession();
+
+                var cancelToken = loadParameters.CancelToken;
+                SolutionProject firstProject = null;
+
+                // If we have a solution, load all packages
+                if (Path.GetExtension(filePath).ToLowerInvariant() == ".sln")
                 {
-                    sessionResult.Clear();
-                    sessionResult.Progress("Loading..", 0, 1);
+                    // The session should save back its changes to the solution
+                    var solution = session.VSSolution = VisualStudio.Solution.FromFile(filePath);
 
-                    var session = new PackageSession();
+                    // Keep header
+                    var versionHeader = solution.Properties.FirstOrDefault(x => x.Name == "VisualStudioVersion");
+                    Version version;
+                    if (versionHeader != null && Version.TryParse(versionHeader.Value, out version))
+                        session.VisualStudioVersion = version;
+                    else
+                        session.VisualStudioVersion = null;
 
-                    var cancelToken = loadParameters.CancelToken;
-                    SolutionProject firstProject = null;
-
-                    // If we have a solution, load all packages
-                    if (Path.GetExtension(filePath).ToLowerInvariant() == ".sln")
+                    // Note: using ToList() because upgrade from old package system might change Projects list
+                    foreach (var vsProject in solution.Projects.ToList())
                     {
-                        // The session should save back its changes to the solution
-                        var solution = session.VSSolution = VisualStudio.Solution.FromFile(filePath);
-
-                        // Keep header
-                        var versionHeader = solution.Properties.FirstOrDefault(x => x.Name == "VisualStudioVersion");
-                        Version version;
-                        if (versionHeader != null && Version.TryParse(versionHeader.Value, out version))
-                            session.VisualStudioVersion = version;
-                        else
-                            session.VisualStudioVersion = null;
-
-                        // Note: using ToList() because upgrade from old package system might change Projects list
-                        foreach (var vsProject in solution.Projects.ToList())
+                        if (vsProject.TypeGuid == VisualStudio.KnownProjectTypeGuid.CSharp || vsProject.TypeGuid == VisualStudio.KnownProjectTypeGuid.CSharpNewSystem)
                         {
-                            if (vsProject.TypeGuid == VisualStudio.KnownProjectTypeGuid.CSharp || vsProject.TypeGuid == VisualStudio.KnownProjectTypeGuid.CSharpNewSystem)
+                            var project = (SolutionProject)session.LoadProject(sessionResult, vsProject.FullPath, loadParameters);
+                            project.VSProject = vsProject;
+                            session.Projects.Add(project);
+
+                            if (firstProject == null)
+                                firstProject = project;
+
+                            // Output the session only if there is no cancellation
+                            if (cancelToken.HasValue && cancelToken.Value.IsCancellationRequested)
                             {
-                                var project = (SolutionProject)session.LoadProject(sessionResult, vsProject.FullPath, loadParameters);
-                                project.VSProject = vsProject;
-                                session.Projects.Add(project);
-
-                                if (firstProject == null)
-                                    firstProject = project;
-
-                                // Output the session only if there is no cancellation
-                                if (cancelToken.HasValue && cancelToken.Value.IsCancellationRequested)
-                                {
-                                    return;
-                                }
+                                return;
                             }
                         }
-
-                        session.LoadMissingDependencies(sessionResult, loadParameters);
-                    }
-                    else if (SupportedProgrammingLanguages.IsProjectExtensionSupported(Path.GetExtension(filePath).ToLowerInvariant())
-                        || Path.GetExtension(filePath).ToLowerInvariant() == Package.PackageFileExtension)
-                    {
-                        var project = session.LoadProject(sessionResult, filePath, loadParameters);
-                        session.Projects.Add(project);
-                        firstProject = project as SolutionProject;
-                    }
-                    else
-                    {
-                        var supportedExtensions = SupportedProgrammingLanguages.Languages
-                            .Select(lang => lang.Extension)
-                            .ToArray();
-
-                        sessionResult.Error($"Unsupported file extension (only .sln, {string.Join(", ", supportedExtensions)} and .sdpkg are supported)");
-                        return;
                     }
 
-                    // Load all missing references/dependencies
-                    session.LoadMissingReferences(sessionResult, loadParameters);
-
-                    // Fix relative references
-                    var analysis = new PackageSessionAnalysis(session, GetPackageAnalysisParametersForLoad());
-                    var analysisResults = analysis.Run();
-                    analysisResults.CopyTo(sessionResult);
-
-                    // Run custom package session analysis
-                    foreach (var type in AssetRegistry.GetPackageSessionAnalysisTypes())
-                    {
-                        var pkgAnalysis = (PackageSessionAnalysisBase)Activator.CreateInstance(type);
-                        pkgAnalysis.Session = session;
-                        var results = pkgAnalysis.Run();
-                        results.CopyTo(sessionResult);
-                    }
-
-                    // Output the session only if there is no cancellation
-                    if (!cancelToken.HasValue || !cancelToken.Value.IsCancellationRequested)
-                    {
-                        sessionResult.Session = session;
-
-                        // Defer the initialization of the dependency manager
-                        //session.DependencyManager.InitializeDeferred();
-                    }
-
-                    // Setup the current package when loading it
-                    if (firstProject != null)
-                        session.CurrentProject = firstProject;
-
-                    // The session is not dirty when loading it
-                    session.IsDirty = false;
+                    session.LoadMissingDependencies(sessionResult, loadParameters);
                 }
+                else if (SupportedProgrammingLanguages.IsProjectExtensionSupported(Path.GetExtension(filePath).ToLowerInvariant())
+                    || Path.GetExtension(filePath).ToLowerInvariant() == Package.PackageFileExtension)
+                {
+                    var project = session.LoadProject(sessionResult, filePath, loadParameters);
+                    session.Projects.Add(project);
+                    firstProject = project as SolutionProject;
+                }
+                else
+                {
+                    var supportedExtensions = SupportedProgrammingLanguages.Languages
+                        .Select(lang => lang.Extension)
+                        .ToArray();
+
+                    sessionResult.Error($"Unsupported file extension (only .sln, {string.Join(", ", supportedExtensions)} and .sdpkg are supported)");
+                    return;
+                }
+
+                // Load all missing references/dependencies
+                session.LoadMissingReferences(sessionResult, loadParameters);
+
+                // Fix relative references
+                var analysis = new PackageSessionAnalysis(session, GetPackageAnalysisParametersForLoad());
+                var analysisResults = analysis.Run();
+                analysisResults.CopyTo(sessionResult);
+
+                // Run custom package session analysis
+                foreach (var type in AssetRegistry.GetPackageSessionAnalysisTypes())
+                {
+                    var pkgAnalysis = (PackageSessionAnalysisBase)Activator.CreateInstance(type);
+                    pkgAnalysis.Session = session;
+                    var results = pkgAnalysis.Run();
+                    results.CopyTo(sessionResult);
+                }
+
+                // Output the session only if there is no cancellation
+                if (!cancelToken.HasValue || !cancelToken.Value.IsCancellationRequested)
+                {
+                    sessionResult.Session = session;
+
+                    // Defer the initialization of the dependency manager
+                    //session.DependencyManager.InitializeDeferred();
+                }
+
+                // Setup the current package when loading it
+                if (firstProject != null)
+                    session.CurrentProject = firstProject;
+
+                // The session is not dirty when loading it
+                session.IsDirty = false;
             }
             finally
             {
@@ -984,156 +982,154 @@ MinimumVisualStudioVersion = {0}".ToFormat(DefaultVisualStudioVersion);
         {
             //var clock = Stopwatch.StartNew();
             var loggerResult = new ForwardingLoggerResult(log);
-            using (var profile = Profiler.Begin(PackageSessionProfilingKeys.Saving))
+            using var profile = Profiler.Begin(PackageSessionProfilingKeys.Saving);
+            var packagesSaved = false;
+            var packagesDirty = false;
+            try
             {
-                var packagesSaved = false;
-                var packagesDirty = false;
-                try
+                saveCompletion = new TaskCompletionSource<int>();
+
+                saveParameters = saveParameters ?? PackageSaveParameters.Default();
+                var assetsOrPackagesToRemove = BuildAssetsOrPackagesToRemove();
+
+                // Compute packages that have been renamed
+                // TODO: Disable for now, as not sure if we want to delete a previous package
+                //foreach (var package in packagesCopy)
+                //{
+                //    var newPackage = packages.Find(package.Id);
+                //    if (newPackage != null && package.PackagePath != null && newPackage.PackagePath != package.PackagePath)
+                //    {
+                //        assetsOrPackagesToRemove[package.PackagePath] = package;
+                //    }
+                //}
+
+                // If package are not modified, return immediately
+                if (!CheckModifiedPackages() && assetsOrPackagesToRemove.Count == 0)
                 {
-                    saveCompletion = new TaskCompletionSource<int>();
+                    return;
+                }
 
-                    saveParameters = saveParameters ?? PackageSaveParameters.Default();
-                    var assetsOrPackagesToRemove = BuildAssetsOrPackagesToRemove();
+                // Suspend tracking when saving as we don't want to receive
+                // all notification events
+                dependencies?.BeginSavingSession();
+                sourceTracker?.BeginSavingSession();
 
-                    // Compute packages that have been renamed
-                    // TODO: Disable for now, as not sure if we want to delete a previous package
-                    //foreach (var package in packagesCopy)
-                    //{
-                    //    var newPackage = packages.Find(package.Id);
-                    //    if (newPackage != null && package.PackagePath != null && newPackage.PackagePath != package.PackagePath)
-                    //    {
-                    //        assetsOrPackagesToRemove[package.PackagePath] = package;
-                    //    }
-                    //}
+                // Return immediately if there is any error
+                if (loggerResult.HasErrors)
+                    return;
 
-                    // If package are not modified, return immediately
-                    if (!CheckModifiedPackages() && assetsOrPackagesToRemove.Count == 0)
+                //batch projects
+                var vsProjs = new Dictionary<string, Microsoft.Build.Evaluation.Project>();
+
+                // Delete previous files
+                foreach (var fileIt in assetsOrPackagesToRemove)
+                {
+                    var assetPath = fileIt.Key;
+                    var assetItemOrPackage = fileIt.Value;
+
+                    var assetItem = assetItemOrPackage as AssetItem;
+                    try
                     {
-                        return;
-                    }
-
-                    // Suspend tracking when saving as we don't want to receive
-                    // all notification events
-                    dependencies?.BeginSavingSession();
-                    sourceTracker?.BeginSavingSession();
-
-                    // Return immediately if there is any error
-                    if (loggerResult.HasErrors)
-                        return;
-       
-                    //batch projects
-                    var vsProjs = new Dictionary<string, Microsoft.Build.Evaluation.Project>();
-
-                    // Delete previous files
-                    foreach (var fileIt in assetsOrPackagesToRemove)
-                    {
-                        var assetPath = fileIt.Key;
-                        var assetItemOrPackage = fileIt.Value;
-
-                        var assetItem = assetItemOrPackage as AssetItem;
-                        try
+                        //If we are within a csproj we need to remove the file from there as well
+                        var projectFullPath = (assetItem.Package.Container as SolutionProject)?.FullPath;
+                        if (projectFullPath != null)
                         {
-                            //If we are within a csproj we need to remove the file from there as well
-                            var projectFullPath = (assetItem.Package.Container as SolutionProject)?.FullPath;
-                            if (projectFullPath != null)
+                            var projectAsset = assetItem.Asset as IProjectAsset;
+                            if (projectAsset != null)
                             {
-                                var projectAsset = assetItem.Asset as IProjectAsset;
-                                if (projectAsset != null)
+                                var projectInclude = assetItem.GetProjectInclude();
+
+                                Microsoft.Build.Evaluation.Project project;
+                                if (!vsProjs.TryGetValue(projectFullPath, out project))
                                 {
-                                    var projectInclude = assetItem.GetProjectInclude();
+                                    project = VSProjectHelper.LoadProject(projectFullPath.ToWindowsPath());
+                                    vsProjs.Add(projectFullPath, project);
+                                }
+                                var projectItem = project.Items.FirstOrDefault(x => (x.ItemType == "Compile" || x.ItemType == "None") && x.EvaluatedInclude == projectInclude);
+                                if (projectItem != null && !projectItem.IsImported)
+                                {
+                                    project.RemoveItem(projectItem);
+                                }
 
-                                    Microsoft.Build.Evaluation.Project project;
-                                    if (!vsProjs.TryGetValue(projectFullPath, out project))
+                                //delete any generated file as well
+                                var generatorAsset = assetItem.Asset as IProjectFileGeneratorAsset;
+                                if (generatorAsset != null)
+                                {
+                                    var generatedAbsolutePath = assetItem.GetGeneratedAbsolutePath().ToWindowsPath();
+
+                                    File.Delete(generatedAbsolutePath);
+
+                                    var generatedInclude = assetItem.GetGeneratedInclude();
+                                    var generatedItem = project.Items.FirstOrDefault(x => (x.ItemType == "Compile" || x.ItemType == "None") && x.EvaluatedInclude == generatedInclude);
+                                    if (generatedItem != null)
                                     {
-                                        project = VSProjectHelper.LoadProject(projectFullPath.ToWindowsPath());
-                                        vsProjs.Add(projectFullPath, project);
-                                    }
-                                    var projectItem = project.Items.FirstOrDefault(x => (x.ItemType == "Compile" || x.ItemType == "None") && x.EvaluatedInclude == projectInclude);
-                                    if (projectItem != null && !projectItem.IsImported)
-                                    {
-                                        project.RemoveItem(projectItem);
-                                    }
-
-                                    //delete any generated file as well
-                                    var generatorAsset = assetItem.Asset as IProjectFileGeneratorAsset;
-                                    if (generatorAsset != null)
-                                    {
-                                        var generatedAbsolutePath = assetItem.GetGeneratedAbsolutePath().ToWindowsPath();
-
-                                        File.Delete(generatedAbsolutePath);
-
-                                        var generatedInclude = assetItem.GetGeneratedInclude();
-                                        var generatedItem = project.Items.FirstOrDefault(x => (x.ItemType == "Compile" || x.ItemType == "None") && x.EvaluatedInclude == generatedInclude);
-                                        if (generatedItem != null)
-                                        {
-                                            project.RemoveItem(generatedItem);
-                                        }
+                                        project.RemoveItem(generatedItem);
                                     }
                                 }
                             }
-
-                            File.Delete(assetPath);
                         }
-                        catch (Exception ex)
+
+                        File.Delete(assetPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (assetItem != null)
                         {
-                            if (assetItem != null)
+                            loggerResult.Error(assetItem.Package, assetItem.ToReference(), AssetMessageCode.AssetCannotDelete, ex, assetPath);
+                        }
+                        else
+                        {
+                            var package = assetItemOrPackage as Package;
+                            if (package != null)
                             {
-                                loggerResult.Error(assetItem.Package, assetItem.ToReference(), AssetMessageCode.AssetCannotDelete, ex, assetPath);
-                            }
-                            else
-                            {
-                                var package = assetItemOrPackage as Package;
-                                if (package != null)
-                                {
-                                    loggerResult.Error(package, null, AssetMessageCode.AssetCannotDelete, ex, assetPath);
-                                }
+                                loggerResult.Error(package, null, AssetMessageCode.AssetCannotDelete, ex, assetPath);
                             }
                         }
                     }
-
-                    foreach (var project in vsProjs.Values)
-                    {
-                        project.Save();
-                        project.ProjectCollection.UnloadAllProjects();
-                        project.ProjectCollection.Dispose();
-                    }
-
-                    // Save all dirty assets
-                    packagesCopy.Clear();
-                    foreach (var package in LocalPackages)
-                    {
-                        // Save the package to disk and all its assets
-                        package.Container.Save(loggerResult, saveParameters);
-
-                        // Check if everything was saved (might not be the case if things are filtered out)
-                        if (package.IsDirty || package.Assets.IsDirty)
-                            packagesDirty = true;
-
-                        // Clone the package (but not all assets inside, just the structure)
-                        var packageClone = package.Clone();
-                        packagesCopy.Add(package, packageClone);
-                    }
-
-                    packagesSaved = true;
                 }
-                finally
+
+                foreach (var project in vsProjs.Values)
                 {
-                    sourceTracker?.EndSavingSession();
-                    dependencies?.EndSavingSession();
-
-                    // Once all packages and assets have been saved, we can save the solution (as we need to have fullpath to
-                    // be setup for the packages)
-                    if (packagesSaved)
-                    {
-                        VSSolution.Save();
-                    }
-                    saveCompletion?.SetResult(0);
-                    saveCompletion = null;
+                    project.Save();
+                    project.ProjectCollection.UnloadAllProjects();
+                    project.ProjectCollection.Dispose();
                 }
 
-                //System.Diagnostics.Trace.WriteLine("Elapsed saved: " + clock.ElapsedMilliseconds);
-                IsDirty = packagesDirty;
+                // Save all dirty assets
+                packagesCopy.Clear();
+                foreach (var package in LocalPackages)
+                {
+                    // Save the package to disk and all its assets
+                    package.Container.Save(loggerResult, saveParameters);
+
+                    // Check if everything was saved (might not be the case if things are filtered out)
+                    if (package.IsDirty || package.Assets.IsDirty)
+                        packagesDirty = true;
+
+                    // Clone the package (but not all assets inside, just the structure)
+                    var packageClone = package.Clone();
+                    packagesCopy.Add(package, packageClone);
+                }
+
+                packagesSaved = true;
             }
+            finally
+            {
+                sourceTracker?.EndSavingSession();
+                dependencies?.EndSavingSession();
+
+                // Once all packages and assets have been saved, we can save the solution (as we need to have fullpath to
+                // be setup for the packages)
+                if (packagesSaved)
+                {
+                    VSSolution.Save();
+                }
+                saveCompletion?.SetResult(0);
+                saveCompletion = null;
+            }
+
+            //System.Diagnostics.Trace.WriteLine("Elapsed saved: " + clock.ElapsedMilliseconds);
+            IsDirty = packagesDirty;
         }
 
         private Dictionary<UFile, object> BuildAssetsOrPackagesToRemove()

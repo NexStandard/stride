@@ -926,25 +926,23 @@ namespace Stride.TextureConverter.DxtWrapper
 
         internal static int GetAlphaDepth(String filePath)
         {
-            using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+            int headerSize = sizeof(DDSHeaderDX9);  // 128byte
+            byte[] buffer = new byte[headerSize];
+            DDSHeaderDX9 header;
+            fileStream.Read(buffer, 0, headerSize);
+            fixed (byte* ptr = buffer)
             {
-                int headerSize = sizeof(DDSHeaderDX9);  // 128byte
-                byte[] buffer = new byte[headerSize];
-                DDSHeaderDX9 header;
-                fileStream.Read(buffer, 0, headerSize);
-                fixed (byte* ptr = buffer)
-                {
-                    DDSHeaderDX9* headerPtr = &header;
-                    Unsafe.CopyBlockUnaligned(headerPtr, ptr, (uint)headerSize);
-                }
-                if (header.dwMagic != 0x20534444 || header.dwPfSize != 32)
-                    return -1;
-                if ((header.dwPfFlags & (uint)DDSPfFlags.DDPF_FOURCC) == 0 && (header.dwPfFlags & (uint)(DDSPfFlags.DDPF_RGB|DDSPfFlags.DDPF_ALPHA)) != 0)
-                {
-                    if ((header.dwPfFlags & (uint)DDSPfFlags.DDPF_ALPHAPIXELS) != 0)
-                        return GetBitCount(header.dwRGBAlphaBitMask);
-                    return 0;
-                }
+                DDSHeaderDX9* headerPtr = &header;
+                Unsafe.CopyBlockUnaligned(headerPtr, ptr, (uint)headerSize);
+            }
+            if (header.dwMagic != 0x20534444 || header.dwPfSize != 32)
+                return -1;
+            if ((header.dwPfFlags & (uint)DDSPfFlags.DDPF_FOURCC) == 0 && (header.dwPfFlags & (uint)(DDSPfFlags.DDPF_RGB | DDSPfFlags.DDPF_ALPHA)) != 0)
+            {
+                if ((header.dwPfFlags & (uint)DDSPfFlags.DDPF_ALPHAPIXELS) != 0)
+                    return GetBitCount(header.dwRGBAlphaBitMask);
+                return 0;
             }
             return -1;
         }

@@ -171,8 +171,8 @@ namespace Stride.Graphics.Tests
                 clock.Restart();
                 for (int i = 0; i < Count; i++)
                 {
-                    using (var stream = File.Open("map2.bin", FileMode.Create))
-                        image.Save(stream, imageFileType);
+                    using var stream = File.Open("map2.bin", FileMode.Create);
+                    image.Save(stream, imageFileType);
                 }
                 Log.Info($"Save [{Count}] {imageFileType} in {clock.ElapsedMilliseconds}ms");
             }

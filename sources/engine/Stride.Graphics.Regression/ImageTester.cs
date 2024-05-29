@@ -37,10 +37,8 @@ namespace Stride.Graphics.Regression
         public static void SaveImage(Image image, string testFilename)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(testFilename));
-            using (var stream = File.Open(testFilename, FileMode.Create))
-            {
-                image.Save(stream, ImageFileType.Png);
-            }
+            using var stream = File.Open(testFilename, FileMode.Create);
+            image.Save(stream, ImageFileType.Png);
         }
 
         /// <summary>
@@ -51,74 +49,72 @@ namespace Stride.Graphics.Regression
         public static bool CompareImage(Image image, string testFilename)
         {
             // Compare
-            using (var stream = File.OpenRead(testFilename))
-            using (var referenceImage = Image.Load(stream))
+            using var stream = File.OpenRead(testFilename);
+            using var referenceImage = Image.Load(stream);
+            // Start comparison
+            if (image.PixelBuffer.Count != referenceImage.PixelBuffer.Count)
             {
-                // Start comparison
-                if (image.PixelBuffer.Count != referenceImage.PixelBuffer.Count)
+                return false;
+            }
+
+            for (int i = 0; i < image.PixelBuffer.Count; ++i)
+            {
+                var buffer = image.PixelBuffer[i];
+                var referenceBuffer = referenceImage.PixelBuffer[i];
+
+                if (buffer.Width != referenceBuffer.Width
+                    || buffer.Height != referenceBuffer.Height
+                    || buffer.RowStride != referenceBuffer.RowStride)
+                    return false;
+
+                var swapBGR = buffer.Format.IsBGRAOrder() != referenceBuffer.Format.IsBGRAOrder();
+                // For now, we handle only those specific cases
+                if ((buffer.Format != PixelFormat.R8G8B8A8_UNorm_SRgb && buffer.Format != PixelFormat.B8G8R8A8_UNorm_SRgb)
+                    || referenceBuffer.Format != PixelFormat.B8G8R8A8_UNorm)
                 {
+                    // TODO: support more formats
                     return false;
                 }
 
-                for (int i = 0; i < image.PixelBuffer.Count; ++i)
+                bool checkAlpha = buffer.Format.AlphaSizeInBits() > 0;
+
+                // Compare remaining bytes.
+                int allowedDiff = 2;
+                int differentPixels = 0;
+                unsafe
                 {
-                    var buffer = image.PixelBuffer[i];
-                    var referenceBuffer = referenceImage.PixelBuffer[i];
-
-                    if (buffer.Width != referenceBuffer.Width
-                        || buffer.Height != referenceBuffer.Height
-                        || buffer.RowStride != referenceBuffer.RowStride)
-                        return false;
-
-                    var swapBGR = buffer.Format.IsBGRAOrder() != referenceBuffer.Format.IsBGRAOrder();
-                    // For now, we handle only those specific cases
-                    if ((buffer.Format != PixelFormat.R8G8B8A8_UNorm_SRgb && buffer.Format != PixelFormat.B8G8R8A8_UNorm_SRgb)
-                        || referenceBuffer.Format != PixelFormat.B8G8R8A8_UNorm)
+                    for (int y = 0; y < buffer.Height; ++y)
                     {
-                        // TODO: support more formats
-                        return false;
-                    }
-
-                    bool checkAlpha = buffer.Format.AlphaSizeInBits() > 0;
-
-                    // Compare remaining bytes.
-                    int allowedDiff = 2;
-                    int differentPixels = 0;
-                    unsafe
-                    {
-                        for (int y = 0; y < buffer.Height; ++y)
+                        var pSrc = (Color*)(buffer.DataPointer + y * buffer.RowStride);
+                        var pDst = (Color*)(referenceBuffer.DataPointer + y * referenceBuffer.RowStride);
+                        for (int x = 0; x < buffer.Width; ++x, ++pSrc, ++pDst)
                         {
-                            var pSrc = (Color*)(buffer.DataPointer + y * buffer.RowStride);
-                            var pDst = (Color*)(referenceBuffer.DataPointer + y * referenceBuffer.RowStride);
-                            for (int x = 0; x < buffer.Width; ++x, ++pSrc, ++pDst)
+                            var src = *pSrc;
+                            if (swapBGR)
                             {
-                                var src = *pSrc;
-                                if (swapBGR)
-                                {
-                                    var tmp = src.B;
-                                    src.B = src.R;
-                                    src.R = tmp;
-                                }
+                                var tmp = src.B;
+                                src.B = src.R;
+                                src.R = tmp;
+                            }
 
-                                var r = Math.Abs((int)src.R - (int)pDst->R);
-                                var g = Math.Abs((int)src.G - (int)pDst->G);
-                                var b = Math.Abs((int)src.B - (int)pDst->B);
-                                var a = Math.Abs((int)src.A - (int)pDst->A);
-                                if (r > allowedDiff || g > allowedDiff || b > allowedDiff || (a > allowedDiff && checkAlpha))
-                                {
-                                    // Too big difference
-                                    differentPixels++;
-                                }
+                            var r = Math.Abs((int)src.R - (int)pDst->R);
+                            var g = Math.Abs((int)src.G - (int)pDst->G);
+                            var b = Math.Abs((int)src.B - (int)pDst->B);
+                            var a = Math.Abs((int)src.A - (int)pDst->A);
+                            if (r > allowedDiff || g > allowedDiff || b > allowedDiff || (a > allowedDiff && checkAlpha))
+                            {
+                                // Too big difference
+                                differentPixels++;
                             }
                         }
                     }
-
-                    if (differentPixels > 0)
-                        return false;
                 }
 
-                return true;
+                if (differentPixels > 0)
+                    return false;
             }
+
+            return true;
         }
     }
 }

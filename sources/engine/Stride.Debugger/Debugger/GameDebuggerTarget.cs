@@ -218,23 +218,21 @@ namespace Stride.Debugger.Target
         {
             host = gameDebuggerHost;
             string callbackChannelEndpoint = "Stride/Debugger/GameDebuggerTarget/CallbackChannel";
-            using (var callbackHost = new NpHost(callbackChannelEndpoint, null, null))
+            using var callbackHost = new NpHost(callbackChannelEndpoint, null, null);
+            callbackHost.AddService<IGameDebuggerTarget>(this);
+            host.RegisterTarget(callbackChannelEndpoint);
+
+            Log.MessageLogged += Log_MessageLogged;
+
+            // Log suppressed exceptions in scripts
+            ScriptSystem.Log.MessageLogged += Log_MessageLogged;
+            Scheduler.Log.MessageLogged += Log_MessageLogged;
+
+            Log.Info("Starting debugging session");
+
+            while (!requestedExit)
             {
-                callbackHost.AddService<IGameDebuggerTarget>(this);
-                host.RegisterTarget(callbackChannelEndpoint);
-
-                Log.MessageLogged += Log_MessageLogged;
-
-                // Log suppressed exceptions in scripts
-                ScriptSystem.Log.MessageLogged += Log_MessageLogged;
-                Scheduler.Log.MessageLogged += Log_MessageLogged;
-
-                Log.Info("Starting debugging session");
-
-                while (!requestedExit)
-                {
-                    Thread.Sleep(10);
-                }
+                Thread.Sleep(10);
             }
         }
 

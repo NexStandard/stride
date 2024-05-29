@@ -161,15 +161,13 @@ namespace Stride.Core.Design.Tests.Transactions
             };
             for (var j = 0; j < stack.Capacity; ++j)
             {
-                using (var transaction = stack.CreateTransaction())
+                using var transaction = stack.CreateTransaction();
+                for (var i = 0; i < 3; ++i)
                 {
-                    for (var i = 0; i < 3; ++i)
-                    {
-                        var operation = new SimpleOperation();
-                        stack.PushOperation(operation);
-                    }
-                    transactions[j] = transaction;
+                    var operation = new SimpleOperation();
+                    stack.PushOperation(operation);
                 }
+                transactions[j] = transaction;
             }
             stack.TransactionCompleted += (sender, e) => Assert.Equal(expectedRaiseCount, ++raiseCount);
             using (stack.CreateTransaction())
@@ -204,15 +202,13 @@ namespace Stride.Core.Design.Tests.Transactions
             };
             for (var j = 0; j < stack.Capacity; ++j)
             {
-                using (var transaction = stack.CreateTransaction())
+                using var transaction = stack.CreateTransaction();
+                for (var i = 0; i < 3; ++i)
                 {
-                    for (var i = 0; i < 3; ++i)
-                    {
-                        var operation = new SimpleOperation();
-                        stack.PushOperation(operation);
-                    }
-                    transactions[j] = transaction;
+                    var operation = new SimpleOperation();
+                    stack.PushOperation(operation);
                 }
+                transactions[j] = transaction;
             }
             stack.Rollback();
             stack.TransactionCompleted += (sender, e) => Assert.Equal(expectedRaiseCount, ++raiseCount);
@@ -254,15 +250,13 @@ namespace Stride.Core.Design.Tests.Transactions
             };
             for (var j = 0; j < stack.Capacity; ++j)
             {
-                using (var transaction = stack.CreateTransaction())
+                using var transaction = stack.CreateTransaction();
+                for (var i = 0; i < 3; ++i)
                 {
-                    for (var i = 0; i < 3; ++i)
-                    {
-                        var operation = new SimpleOperation();
-                        stack.PushOperation(operation);
-                    }
-                    transactions[j] = transaction;
+                    var operation = new SimpleOperation();
+                    stack.PushOperation(operation);
                 }
+                transactions[j] = transaction;
             }
             stack.Rollback();
             stack.Rollback();
@@ -304,15 +298,13 @@ namespace Stride.Core.Design.Tests.Transactions
             };
             for (var j = 0; j < stack.Capacity; ++j)
             {
-                using (var transaction = stack.CreateTransaction())
+                using var transaction = stack.CreateTransaction();
+                for (var i = 0; i < 3; ++i)
                 {
-                    for (var i = 0; i < 3; ++i)
-                    {
-                        var operation = new SimpleOperation();
-                        stack.PushOperation(operation);
-                    }
-                    transactions[j] = transaction;
+                    var operation = new SimpleOperation();
+                    stack.PushOperation(operation);
                 }
+                transactions[j] = transaction;
             }
             for (var j = 0; j < stack.Capacity; ++j)
             {

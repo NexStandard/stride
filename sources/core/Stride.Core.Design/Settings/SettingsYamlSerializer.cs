@@ -24,11 +24,9 @@ namespace Stride.Core.Settings
         public object Deserialize([NotNull] Stream stream, [NotNull] object existingObject)
         {
             if (existingObject == null) throw new ArgumentNullException(nameof(existingObject));
-            using (var textReader = new StreamReader(stream))
-            {
-                var serializer = GetYamlSerializer();
-                return serializer.Deserialize(textReader, existingObject.GetType(), existingObject);
-            }
+            using var textReader = new StreamReader(stream);
+            var serializer = GetYamlSerializer();
+            return serializer.Deserialize(textReader, existingObject.GetType(), existingObject);
         }
 
         /// <summary>

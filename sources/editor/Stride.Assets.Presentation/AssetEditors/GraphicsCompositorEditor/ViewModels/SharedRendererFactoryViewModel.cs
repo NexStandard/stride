@@ -39,11 +39,9 @@ namespace Stride.Assets.Presentation.AssetEditors.GraphicsCompositorEditor.ViewM
             var renderer = (ISharedRenderer)Activator.CreateInstance(Type);
 
             // Add renderer
-            using (var transaction = ServiceProvider.Get<IUndoRedoService>().CreateTransaction())
-            {
-                sharedRenderersNode.Add(renderer);
-                ServiceProvider.Get<IUndoRedoService>().SetName(transaction, "Create renderer");
-            }
+            using var transaction = ServiceProvider.Get<IUndoRedoService>().CreateTransaction();
+            sharedRenderersNode.Add(renderer);
+            ServiceProvider.Get<IUndoRedoService>().SetName(transaction, "Create renderer");
         }
     }
 }

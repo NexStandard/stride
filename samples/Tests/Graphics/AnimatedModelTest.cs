@@ -22,31 +22,27 @@ namespace Stride.Samples.Tests
         [Fact]
         public void TestLaunch()
         {
-            using (var game = new GameTestingClient(Path, SampleTestsData.TestPlatform))
-            {
-                game.Wait(TimeSpan.FromMilliseconds(2000));
-            }
+            using var game = new GameTestingClient(Path, SampleTestsData.TestPlatform);
+            game.Wait(TimeSpan.FromMilliseconds(2000));
         }
 
         [Fact]
         public void TestInputs()
         {
-            using (var game = new GameTestingClient(Path, SampleTestsData.TestPlatform))
-            {
-                game.Wait(TimeSpan.FromMilliseconds(2000));
+            using var game = new GameTestingClient(Path, SampleTestsData.TestPlatform);
+            game.Wait(TimeSpan.FromMilliseconds(2000));
 
-                //Play Idle anim and take screenshot
-                game.Tap(new Vector2(0.83f, 0.05f), TimeSpan.FromMilliseconds(500));
-                game.Wait(TimeSpan.FromMilliseconds(2000));
-                game.TakeScreenshot();
-                game.Wait(TimeSpan.FromMilliseconds(500));
+            //Play Idle anim and take screenshot
+            game.Tap(new Vector2(0.83f, 0.05f), TimeSpan.FromMilliseconds(500));
+            game.Wait(TimeSpan.FromMilliseconds(2000));
+            game.TakeScreenshot();
+            game.Wait(TimeSpan.FromMilliseconds(500));
 
-                //Play Run anim and take screenshot
-                game.Tap(new Vector2(0.83f, 0.15f), TimeSpan.FromMilliseconds(500));
-                game.Wait(TimeSpan.FromMilliseconds(2000));
-                game.TakeScreenshot();
-                game.Wait(TimeSpan.FromMilliseconds(500));
-            }
+            //Play Run anim and take screenshot
+            game.Tap(new Vector2(0.83f, 0.15f), TimeSpan.FromMilliseconds(500));
+            game.Wait(TimeSpan.FromMilliseconds(2000));
+            game.TakeScreenshot();
+            game.Wait(TimeSpan.FromMilliseconds(500));
         }
     }
 }

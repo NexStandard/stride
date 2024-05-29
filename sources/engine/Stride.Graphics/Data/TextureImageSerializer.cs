@@ -22,27 +22,25 @@ namespace Stride.Graphics.Data
                 var graphicsDeviceService = services.GetSafeServiceAs<IGraphicsDeviceService>();
 
                 // TODO: Error handling?
-                using (var textureData = Image.Load(stream.UnderlyingStream))
+                using var textureData = Image.Load(stream.UnderlyingStream);
+                if (texture.GraphicsDevice != null)
+                    texture.OnDestroyed(); //Allows fast reloading todo review maybe?
+
+                texture.AttachToGraphicsDevice(graphicsDeviceService.GraphicsDevice);
+                texture.InitializeFrom(textureData.Description, new TextureViewDescription(), textureData.ToDataBox());
+
+                // Setup reload callback (reload from asset manager)
+                var contentSerializerContext = stream.Context.Get(ContentSerializerContext.ContentSerializerContextProperty);
+                if (contentSerializerContext != null)
                 {
-                    if (texture.GraphicsDevice != null)
-                        texture.OnDestroyed(); //Allows fast reloading todo review maybe?
-
-                    texture.AttachToGraphicsDevice(graphicsDeviceService.GraphicsDevice);
-                    texture.InitializeFrom(textureData.Description, new TextureViewDescription(), textureData.ToDataBox());
-
-                    // Setup reload callback (reload from asset manager)
-                    var contentSerializerContext = stream.Context.Get(ContentSerializerContext.ContentSerializerContextProperty);
-                    if (contentSerializerContext != null)
+                    texture.Reload = static (graphicsResource, services) =>
                     {
-                        texture.Reload = static (graphicsResource, services) =>
-                        {
-                            var assetManager = services.GetService<ContentManager>();
-                            assetManager.TryGetAssetUrl(graphicsResource, out var url);
-                            var textureDataReloaded = assetManager.Load<Image>(url);
-                            ((Texture)graphicsResource).Recreate(textureDataReloaded.ToDataBox());
-                            assetManager.Unload(textureDataReloaded);
-                        };
-                    }
+                        var assetManager = services.GetService<ContentManager>();
+                        assetManager.TryGetAssetUrl(graphicsResource, out var url);
+                        var textureDataReloaded = assetManager.Load<Image>(url);
+                        ((Texture)graphicsResource).Recreate(textureDataReloaded.ToDataBox());
+                        assetManager.Unload(textureDataReloaded);
+                    };
                 }
             }
             else

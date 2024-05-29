@@ -124,12 +124,10 @@ namespace Stride.Core.Assets
         private static void CheckMSBuildToolset()
         {
             // Check that we can create a project
-            using (var projectCollection = new Microsoft.Build.Evaluation.ProjectCollection())
+            using var projectCollection = new Microsoft.Build.Evaluation.ProjectCollection();
+            if (projectCollection.GetToolset("Current") == null) // VS 2019+ (https://github.com/Microsoft/msbuild/issues/3778)
             {
-                if (projectCollection.GetToolset("Current") == null) // VS 2019+ (https://github.com/Microsoft/msbuild/issues/3778)
-                {
-                    throw new InvalidOperationException("Could not find a supported MSBuild toolset version (expected 16.0 or later)");
-                }
+                throw new InvalidOperationException("Could not find a supported MSBuild toolset version (expected 16.0 or later)");
             }
         }
     }

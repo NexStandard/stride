@@ -178,71 +178,70 @@ namespace Stride.Core.Assets
                 RuntimeGraph = new RuntimeGraph(new[] { new RuntimeDescription(runtimeIdentifier) }),
             };
 
-            using (var context = new SourceCacheContext())
+            using var context = new SourceCacheContext();
+
+            context.IgnoreFailedSources = true;
+
+            var dependencyGraphSpec = new DependencyGraphSpec();
+
+            dependencyGraphSpec.AddProject(spec);
+
+            dependencyGraphSpec.AddRestore(spec.RestoreMetadata.ProjectUniqueName);
+
+            IPreLoadedRestoreRequestProvider requestProvider = new DependencyGraphSpecRequestProvider(new RestoreCommandProvidersCache(), dependencyGraphSpec);
+
+            var restoreArgs = new RestoreArgs
             {
-                context.IgnoreFailedSources = true;
+                AllowNoOp = true,
+                CacheContext = context,
+                CachingSourceProvider = new CachingSourceProvider(new PackageSourceProvider(settings)),
+                Log = logger,
+            };
 
-                var dependencyGraphSpec = new DependencyGraphSpec();
+            // Create requests from the arguments
+            var requests = requestProvider.CreateRequests(restoreArgs).Result;
 
-                dependencyGraphSpec.AddProject(spec);
-
-                dependencyGraphSpec.AddRestore(spec.RestoreMetadata.ProjectUniqueName);
-
-                IPreLoadedRestoreRequestProvider requestProvider = new DependencyGraphSpecRequestProvider(new RestoreCommandProvidersCache(), dependencyGraphSpec);
-
-                var restoreArgs = new RestoreArgs
+            // Restore the packages
+            for (int tryCount = 0; tryCount < 2; ++tryCount)
+            {
+                try
                 {
-                    AllowNoOp = true,
-                    CacheContext = context,
-                    CachingSourceProvider = new CachingSourceProvider(new PackageSourceProvider(settings)),
-                    Log = logger,
-                };
+                    var results = RestoreRunner.RunWithoutCommit(requests, restoreArgs).Result;
 
-                // Create requests from the arguments
-                var requests = requestProvider.CreateRequests(restoreArgs).Result;
-
-                // Restore the packages
-                for (int tryCount = 0; tryCount < 2; ++tryCount)
-                {
-                    try
+                    // Commit results so that noop cache works next time
+                    foreach (var result in results)
                     {
-                        var results = RestoreRunner.RunWithoutCommit(requests, restoreArgs).Result;
-
-                        // Commit results so that noop cache works next time
-                        foreach (var result in results)
-                        {
-                            result.Result.CommitAsync(logger, CancellationToken.None).Wait();
-                        }
-                        var mainResult = results.First();
-                        return (mainResult.SummaryRequest.Request, mainResult.Result);
+                        result.Result.CommitAsync(logger, CancellationToken.None).Wait();
                     }
-                    catch (Exception e) when (e is UnauthorizedAccessException || e is IOException || ((e is AggregateException ae) && ae.InnerExceptions.Any(e2 => e2 is UnauthorizedAccessException || e2 is IOException)))
-                    {
-                        // If we have an unauthorized access exception, it means assemblies are locked by running Stride process
-                        // During first try, kill some known harmless processes, and try again
-                        if (tryCount == 1)
-                            throw;
+                    var mainResult = results.First();
+                    return (mainResult.SummaryRequest.Request, mainResult.Result);
+                }
+                catch (Exception e) when (e is UnauthorizedAccessException || e is IOException || ((e is AggregateException ae) && ae.InnerExceptions.Any(e2 => e2 is UnauthorizedAccessException || e2 is IOException)))
+                {
+                    // If we have an unauthorized access exception, it means assemblies are locked by running Stride process
+                    // During first try, kill some known harmless processes, and try again
+                    if (tryCount == 1)
+                        throw;
 
-                        foreach (var process in new[] { "Stride.ConnectionRouter", "Stride.VisualStudio.Commands" }.SelectMany(Process.GetProcessesByName))
+                    foreach (var process in new[] { "Stride.ConnectionRouter", "Stride.VisualStudio.Commands" }.SelectMany(Process.GetProcessesByName))
+                    {
+                        try
                         {
-                            try
+                            if (process.Id != Process.GetCurrentProcess().Id)
                             {
-                                if (process.Id != Process.GetCurrentProcess().Id)
-                                {
-                                    logger.LogWarning($"Failed to restore NuGet, killing '{process.ProcessName}' to hopefully release locks held by it - VS extension will break");
-                                    process.Kill();
-                                    process.WaitForExit();
-                                }
+                                logger.LogWarning($"Failed to restore NuGet, killing '{process.ProcessName}' to hopefully release locks held by it - VS extension will break");
+                                process.Kill();
+                                process.WaitForExit();
                             }
-                            catch (Exception)
-                            {
-                            }
+                        }
+                        catch (Exception)
+                        {
                         }
                     }
                 }
-
-                throw new InvalidOperationException("Unreachable code");
             }
+
+            throw new InvalidOperationException("Unreachable code");
         }
     }
 }

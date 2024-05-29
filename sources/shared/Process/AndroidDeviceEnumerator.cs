@@ -34,17 +34,15 @@ namespace Stride
             try
             {
                 var localMachine32 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32);
-                using (var androidSdkToolsKey = localMachine32.OpenSubKey(@"Software\Android SDK Tools\", false))
+                using var androidSdkToolsKey = localMachine32.OpenSubKey(@"Software\Android SDK Tools\", false);
+                if (androidSdkToolsKey != null)
                 {
-                    if (androidSdkToolsKey != null)
+                    var path = androidSdkToolsKey.GetValue("Path") as string;
+                    if (path != null)
                     {
-                        var path = androidSdkToolsKey.GetValue("Path") as string;
-                        if (path != null)
-                        {
-                            path = Path.Combine(path, @"platform-tools\adb.exe");
-                            if (File.Exists(path))
-                                return path;
-                        }
+                        path = Path.Combine(path, @"platform-tools\adb.exe");
+                        if (File.Exists(path))
+                            return path;
                     }
                 }
             }

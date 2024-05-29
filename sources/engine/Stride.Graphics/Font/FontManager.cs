@@ -270,15 +270,13 @@ namespace Stride.Graphics.Font
                 return;
 
             // load the font from the data base
-            using (var fontStream = contentManager.OpenAsStream(fontPath, StreamFlags.None))
-            {
-                // create the font data from the stream
-                var newFontData = new byte[fontStream.Length];
-                fontStream.Read(newFontData, 0, newFontData.Length);
+            using var fontStream = contentManager.OpenAsStream(fontPath, StreamFlags.None);
+            // create the font data from the stream
+            var newFontData = new byte[fontStream.Length];
+            fontStream.Read(newFontData, 0, newFontData.Length);
 
-                lock (freetypeLibrary)
-                    cachedFontFaces[fontPath] = freetypeLibrary.NewMemoryFace(newFontData, 0);
-            }
+            lock (freetypeLibrary)
+                cachedFontFaces[fontPath] = freetypeLibrary.NewMemoryFace(newFontData, 0);
         }
 
         /// <summary>

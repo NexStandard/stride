@@ -436,10 +436,8 @@ namespace Stride.Engine
 
                     Console.WriteLine("Saving screenshot: {0}", newFileName);
 
-                    using (var stream = System.IO.File.Create(newFileName))
-                    {
-                        GraphicsDevice.Presenter.BackBuffer.Save(GraphicsContext.CommandList, stream, ImageFileType.Png);
-                    }
+                    using var stream = System.IO.File.Create(newFileName);
+                    GraphicsDevice.Presenter.BackBuffer.Save(GraphicsContext.CommandList, stream, ImageFileType.Png);
                 }
             }
             base.EndDraw(present);

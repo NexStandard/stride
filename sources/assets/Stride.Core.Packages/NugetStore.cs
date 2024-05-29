@@ -594,24 +594,22 @@ namespace Stride.Core.Packages
 
         private async Task FindSourcePackagesByIdHelper(string packageId, List<NugetServerPackage> resultList, SourceRepository [] repositories, CancellationToken cancellationToken)
         {
-            using (var sourceCacheContext = new SourceCacheContext { MaxAge = DateTimeOffset.UtcNow })
+            using var sourceCacheContext = new SourceCacheContext { MaxAge = DateTimeOffset.UtcNow };
+            foreach (var repo in repositories)
             {
-                foreach (var repo in repositories)
+                try
                 {
-                    try
+                    var metadataResource = await repo.GetResourceAsync<PackageMetadataResource>(CancellationToken.None);
+                    var metadataList = await metadataResource.GetMetadataAsync(packageId, true, true, sourceCacheContext, NativeLogger, cancellationToken);
+                    foreach (var metadata in metadataList)
                     {
-                        var metadataResource = await repo.GetResourceAsync<PackageMetadataResource>(CancellationToken.None);
-                        var metadataList = await metadataResource.GetMetadataAsync(packageId, true, true, sourceCacheContext, NativeLogger, cancellationToken);
-                        foreach (var metadata in metadataList)
-                        {
-                            if (metadata.IsListed)
-                                resultList.Add(new NugetServerPackage(metadata, repo.PackageSource.Source));
-                        }
+                        if (metadata.IsListed)
+                            resultList.Add(new NugetServerPackage(metadata, repo.PackageSource.Source));
                     }
-                    catch (FatalProtocolException)
-                    {
-                        // Ignore 404/403 etc... (invalid sources)
-                    }
+                }
+                catch (FatalProtocolException)
+                {
+                    // Ignore 404/403 etc... (invalid sources)
                 }
             }
         }
@@ -780,63 +778,61 @@ namespace Stride.Core.Packages
         private static void RunPackageInstall(string packageInstall, string arguments, ProgressReport progress)
         {
             // Run packageinstall.exe
-            using (var process = Process.Start(new ProcessStartInfo(packageInstall, arguments)
+            using var process = Process.Start(new ProcessStartInfo(packageInstall, arguments)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardError = true,
                 RedirectStandardOutput = true,
                 WorkingDirectory = Path.GetDirectoryName(packageInstall),
-            }))
+            });
+            if (process == null)
+                throw new InvalidOperationException($"Could not start install package process [{packageInstall}] with options {arguments}");
+
+            var errorOutput = new StringBuilder();
+
+            process.OutputDataReceived += (_, args) =>
             {
-                if (process == null)
-                    throw new InvalidOperationException($"Could not start install package process [{packageInstall}] with options {arguments}");
-
-                var errorOutput = new StringBuilder();
-
-                process.OutputDataReceived += (_, args) =>
+                if (!string.IsNullOrEmpty(args.Data))
                 {
-                    if (!string.IsNullOrEmpty(args.Data))
+                    var matches = powerShellProgressRegex.Match(args.Data);
+                    int percentageResult;
+                    if (matches.Success && int.TryParse(matches.Groups[1].Value, out percentageResult))
                     {
-                        var matches = powerShellProgressRegex.Match(args.Data);
-                        int percentageResult;
-                        if (matches.Success && int.TryParse(matches.Groups[1].Value, out percentageResult))
-                        {
-                            // Report progress
-                            progress?.UpdateProgress(ProgressAction.Install, percentageResult);
-                        }
-                        else
-                        {
-                            lock (process)
-                            {
-                                errorOutput.AppendLine(args.Data);
-                            }
-                        }
+                        // Report progress
+                        progress?.UpdateProgress(ProgressAction.Install, percentageResult);
                     }
-                };
-                process.ErrorDataReceived += (_, args) =>
-                {
-                    if (!string.IsNullOrEmpty(args.Data))
+                    else
                     {
-                        // Save errors
                         lock (process)
                         {
                             errorOutput.AppendLine(args.Data);
                         }
                     }
-                };
-
-                // Process output and wait for exit
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-                process.WaitForExit();
-
-                // Check exit code
-                var exitCode = process.ExitCode;
-                if (exitCode != 0)
-                {
-                    throw new InvalidOperationException($"Error code {exitCode} while running install package process [{packageInstall}]\n\n" + errorOutput);
                 }
+            };
+            process.ErrorDataReceived += (_, args) =>
+            {
+                if (!string.IsNullOrEmpty(args.Data))
+                {
+                    // Save errors
+                    lock (process)
+                    {
+                        errorOutput.AppendLine(args.Data);
+                    }
+                }
+            };
+
+            // Process output and wait for exit
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            process.WaitForExit();
+
+            // Check exit code
+            var exitCode = process.ExitCode;
+            if (exitCode != 0)
+            {
+                throw new InvalidOperationException($"Error code {exitCode} while running install package process [{packageInstall}]\n\n" + errorOutput);
             }
         }
 

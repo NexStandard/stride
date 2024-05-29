@@ -59,159 +59,157 @@ namespace Stride.Assets.Presentation.AssetEditors.UIEditor.ViewModels
         {
             if (child == null) throw new ArgumentNullException(nameof(child));
 
-            using (var transaction = Editor.UndoRedoService.CreateTransaction())
+            using var transaction = Editor.UndoRedoService.CreateTransaction();
+            var canvas = AssetSidePanel as Canvas;
+            if (canvas != null)
             {
-                var canvas = AssetSidePanel as Canvas;
-                if (canvas != null)
+                var pinOrigin = GetDependencyPropertyValue(child, Canvas.PinOriginPropertyKey);
+                switch (mode)
                 {
-                    var pinOrigin = GetDependencyPropertyValue(child, Canvas.PinOriginPropertyKey);
-                    switch (mode)
-                    {
-                        case PanelCommandMode.PinTopLeft:
-                            pinOrigin.X = 0.0f;
-                            pinOrigin.Y = 0.0f;
-                            break;
+                    case PanelCommandMode.PinTopLeft:
+                        pinOrigin.X = 0.0f;
+                        pinOrigin.Y = 0.0f;
+                        break;
 
-                        case PanelCommandMode.PinTop:
-                            pinOrigin.X = 0.5f;
-                            pinOrigin.Y = 0.0f;
-                            break;
+                    case PanelCommandMode.PinTop:
+                        pinOrigin.X = 0.5f;
+                        pinOrigin.Y = 0.0f;
+                        break;
 
-                        case PanelCommandMode.PinTopRight:
-                            pinOrigin.X = 1.0f;
-                            pinOrigin.Y = 0.0f;
-                            break;
+                    case PanelCommandMode.PinTopRight:
+                        pinOrigin.X = 1.0f;
+                        pinOrigin.Y = 0.0f;
+                        break;
 
-                        case PanelCommandMode.PinLeft:
-                            pinOrigin.X = 0.0f;
-                            pinOrigin.Y = 0.5f;
-                            break;
+                    case PanelCommandMode.PinLeft:
+                        pinOrigin.X = 0.0f;
+                        pinOrigin.Y = 0.5f;
+                        break;
 
-                        case PanelCommandMode.PinCenter:
-                            pinOrigin.X = 0.5f;
-                            pinOrigin.Y = 0.5f;
-                            break;
+                    case PanelCommandMode.PinCenter:
+                        pinOrigin.X = 0.5f;
+                        pinOrigin.Y = 0.5f;
+                        break;
 
-                        case PanelCommandMode.PinRight:
-                            pinOrigin.X = 1.0f;
-                            pinOrigin.Y = 0.5f;
-                            break;
+                    case PanelCommandMode.PinRight:
+                        pinOrigin.X = 1.0f;
+                        pinOrigin.Y = 0.5f;
+                        break;
 
-                        case PanelCommandMode.PinBottomLeft:
-                            pinOrigin.X = 0.0f;
-                            pinOrigin.Y = 1.0f;
-                            break;
+                    case PanelCommandMode.PinBottomLeft:
+                        pinOrigin.X = 0.0f;
+                        pinOrigin.Y = 1.0f;
+                        break;
 
-                        case PanelCommandMode.PinBottom:
-                            pinOrigin.X = 0.5f;
-                            pinOrigin.Y = 1.0f;
-                            break;
+                    case PanelCommandMode.PinBottom:
+                        pinOrigin.X = 0.5f;
+                        pinOrigin.Y = 1.0f;
+                        break;
 
-                        case PanelCommandMode.PinBottomRight:
-                            pinOrigin.X = 1.0f;
-                            pinOrigin.Y = 1.0f;
-                            break;
+                    case PanelCommandMode.PinBottomRight:
+                        pinOrigin.X = 1.0f;
+                        pinOrigin.Y = 1.0f;
+                        break;
 
-                        case PanelCommandMode.PinFront:
-                            pinOrigin.Z = 1.0f;
-                            break;
+                    case PanelCommandMode.PinFront:
+                        pinOrigin.Z = 1.0f;
+                        break;
 
-                        case PanelCommandMode.PinMiddle:
-                            pinOrigin.Z = 0.5f;
-                            break;
+                    case PanelCommandMode.PinMiddle:
+                        pinOrigin.Z = 0.5f;
+                        break;
 
-                        case PanelCommandMode.PinBack:
-                            pinOrigin.Z = 0.0f;
-                            break;
+                    case PanelCommandMode.PinBack:
+                        pinOrigin.Z = 0.0f;
+                        break;
 
-                        default:
-                            throw new ArgumentException($"{mode} is not a supported mode.", nameof(mode));
-                    }
-                    SetDependencyPropertyValue(child, Canvas.PinOriginPropertyKey, pinOrigin);
-                    Editor.UndoRedoService.SetName(transaction, $"Change Pin Origin of {UIEditorBaseViewModel.GetDisplayName(child)}");
-                    return;
+                    default:
+                        throw new ArgumentException($"{mode} is not a supported mode.", nameof(mode));
+                }
+                SetDependencyPropertyValue(child, Canvas.PinOriginPropertyKey, pinOrigin);
+                Editor.UndoRedoService.SetName(transaction, $"Change Pin Origin of {UIEditorBaseViewModel.GetDisplayName(child)}");
+                return;
+            }
+
+            var grid = AssetSidePanel as GridBase;
+            if (grid != null)
+            {
+                PropertyKey<int> propertyKey;
+                int offset;
+                switch (mode)
+                {
+                    case PanelCommandMode.MoveUp:
+                        propertyKey = GridBase.RowPropertyKey;
+                        offset = -1;
+                        break;
+
+                    case PanelCommandMode.MoveDown:
+                        propertyKey = GridBase.RowPropertyKey;
+                        offset = 1;
+                        break;
+
+                    case PanelCommandMode.MoveLeft:
+                        propertyKey = GridBase.ColumnPropertyKey;
+                        offset = -1;
+                        break;
+
+                    case PanelCommandMode.MoveRight:
+                        propertyKey = GridBase.ColumnPropertyKey;
+                        offset = 1;
+                        break;
+
+                    case PanelCommandMode.MoveBack:
+                        propertyKey = GridBase.LayerPropertyKey;
+                        offset = -1;
+                        break;
+
+                    case PanelCommandMode.MoveFront:
+                        propertyKey = GridBase.LayerPropertyKey;
+                        offset = 1;
+                        break;
+
+                    default:
+                        throw new ArgumentException($"{mode} is not a supported mode.", nameof(mode));
                 }
 
-                var grid = AssetSidePanel as GridBase;
-                if (grid != null)
+                var currentValue = GetDependencyPropertyValue(child, propertyKey);
+                var newValue = Math.Max(0, currentValue + offset);
+                SetDependencyPropertyValue(child, propertyKey, newValue);
+                Editor.UndoRedoService.SetName(transaction, $"Move {UIEditorBaseViewModel.GetDisplayName(child)}");
+                return;
+            }
+
+            var stackPanel = AssetSidePanel as StackPanel;
+            if (stackPanel != null)
+            {
+                var collection = AssetSidePanel.Children;
+                var index = collection.IndexOf(child);
+                if (index == -1)
+                    throw new InvalidOperationException("The given element is not a child of this panel.");
+
+                int newIndex;
+                switch (mode)
                 {
-                    PropertyKey<int> propertyKey;
-                    int offset;
-                    switch (mode)
-                    {
-                        case PanelCommandMode.MoveUp:
-                            propertyKey = GridBase.RowPropertyKey;
-                            offset = -1;
-                            break;
+                    case PanelCommandMode.MoveDown:
+                        newIndex = index + 1;
+                        if (newIndex >= collection.Count)
+                            return;
+                        break;
 
-                        case PanelCommandMode.MoveDown:
-                            propertyKey = GridBase.RowPropertyKey;
-                            offset = 1;
-                            break;
+                    case PanelCommandMode.MoveUp:
+                        newIndex = index - 1;
+                        if (newIndex < 0)
+                            return;
+                        break;
 
-                        case PanelCommandMode.MoveLeft:
-                            propertyKey = GridBase.ColumnPropertyKey;
-                            offset = -1;
-                            break;
-
-                        case PanelCommandMode.MoveRight:
-                            propertyKey = GridBase.ColumnPropertyKey;
-                            offset = 1;
-                            break;
-
-                        case PanelCommandMode.MoveBack:
-                            propertyKey = GridBase.LayerPropertyKey;
-                            offset = -1;
-                            break;
-
-                        case PanelCommandMode.MoveFront:
-                            propertyKey = GridBase.LayerPropertyKey;
-                            offset = 1;
-                            break;
-
-                        default:
-                            throw new ArgumentException($"{mode} is not a supported mode.", nameof(mode));
-                    }
-
-                    var currentValue = GetDependencyPropertyValue(child, propertyKey);
-                    var newValue = Math.Max(0, currentValue + offset);
-                    SetDependencyPropertyValue(child, propertyKey, newValue);
-                    Editor.UndoRedoService.SetName(transaction, $"Move {UIEditorBaseViewModel.GetDisplayName(child)}");
-                    return;
+                    default:
+                        throw new ArgumentException($"{mode} is not a supported mode.", nameof(mode));
                 }
 
-                var stackPanel = AssetSidePanel as StackPanel;
-                if (stackPanel != null)
-                {
-                    var collection = AssetSidePanel.Children;
-                    var index = collection.IndexOf(child);
-                    if (index == -1)
-                        throw new InvalidOperationException("The given element is not a child of this panel.");
-
-                    int newIndex;
-                    switch (mode)
-                    {
-                        case PanelCommandMode.MoveDown:
-                            newIndex = index + 1;
-                            if (newIndex >= collection.Count)
-                                return;
-                            break;
-
-                        case PanelCommandMode.MoveUp:
-                            newIndex = index - 1;
-                            if (newIndex < 0)
-                                return;
-                            break;
-
-                        default:
-                            throw new ArgumentException($"{mode} is not a supported mode.", nameof(mode));
-                    }
-
-                    // FIXME: review if this is fine doing it that way or if we need to do it the same way as when moving elements around
-                    childrenNode.Remove(child, new NodeIndex(index));
-                    childrenNode.Add(child, new NodeIndex(newIndex));
-                    Editor.UndoRedoService.SetName(transaction, $"Move {UIEditorBaseViewModel.GetDisplayName(child)}");
-                }
+                // FIXME: review if this is fine doing it that way or if we need to do it the same way as when moving elements around
+                childrenNode.Remove(child, new NodeIndex(index));
+                childrenNode.Add(child, new NodeIndex(newIndex));
+                Editor.UndoRedoService.SetName(transaction, $"Move {UIEditorBaseViewModel.GetDisplayName(child)}");
             }
         }
 
@@ -248,196 +246,194 @@ namespace Stride.Assets.Presentation.AssetEditors.UIEditor.ViewModels
             if (targetType == ElementType)
                 return;
 
-            using (var transaction = Editor.UndoRedoService.CreateTransaction())
+            using var transaction = Editor.UndoRedoService.CreateTransaction();
+            Panel targetPanel = null;
+            // Try to maintain the layout order depending on the combinaison of currentType/targetType.
+            //
+            // Notes:
+            // - from any panel to a Canvas (tricky case)
+            //    - for now don't do anything smart
+            //        + later we could try to calculate Canvas absolute or relative position so that elements appear at the same position
+            var stackPanel = AssetSidePanel as StackPanel;
+            if (stackPanel != null)
             {
-                Panel targetPanel = null;
-                // Try to maintain the layout order depending on the combinaison of currentType/targetType.
-                //
-                // Notes:
-                // - from any panel to a Canvas (tricky case)
-                //    - for now don't do anything smart
-                //        + later we could try to calculate Canvas absolute or relative position so that elements appear at the same position
-                var stackPanel = AssetSidePanel as StackPanel;
-                if (stackPanel != null)
+                // from a StackPanel to a Grid or UniformGrid:
+                //   - if the StackPanel's orientation was horizontal, put each element in a different column
+                //   - if the StackPanel's orientation was in-depth, put each element in a different layer
+                //   - if the StackPanel's orientation was vertical, put each element in a different row
+                //   - use StripType.Auto for the Strip definitions of the Grid
+                if (typeof(GridBase).IsAssignableFrom(targetType))
                 {
-                    // from a StackPanel to a Grid or UniformGrid:
-                    //   - if the StackPanel's orientation was horizontal, put each element in a different column
-                    //   - if the StackPanel's orientation was in-depth, put each element in a different layer
-                    //   - if the StackPanel's orientation was vertical, put each element in a different row
-                    //   - use StripType.Auto for the Strip definitions of the Grid
-                    if (typeof(GridBase).IsAssignableFrom(targetType))
+                    var colums = 1;
+                    var rows = 1;
+                    var layers = 1;
+                    var childrenCount = stackPanel.Children.Count;
+                    if (childrenCount > 0)
                     {
-                        var colums = 1;
-                        var rows = 1;
-                        var layers = 1;
-                        var childrenCount = stackPanel.Children.Count;
-                        if (childrenCount > 0)
+                        switch (stackPanel.Orientation)
                         {
-                            switch (stackPanel.Orientation)
-                            {
-                                case Orientation.Horizontal:
-                                    colums = childrenCount;
-                                    break;
+                            case Orientation.Horizontal:
+                                colums = childrenCount;
+                                break;
 
-                                case Orientation.Vertical:
-                                    rows = childrenCount;
-                                    break;
+                            case Orientation.Vertical:
+                                rows = childrenCount;
+                                break;
 
-                                case Orientation.InDepth:
-                                    layers = childrenCount;
-                                    break;
+                            case Orientation.InDepth:
+                                layers = childrenCount;
+                                break;
 
-                                default:
-                                    throw new ArgumentOutOfRangeException();
-                            }
-                        }
-
-                        if (typeof(Grid).IsAssignableFrom(targetType))
-                        {
-                            targetPanel = CreateGrid(colums, rows, layers, StripType.Auto);
-                        }
-                        else if (typeof(UniformGrid).IsAssignableFrom(targetType))
-                        {
-                            targetPanel = CreateUniformGrid(colums, rows, layers);
-                        }
-
-                        if (targetPanel != null)
-                        {
-                            CopySwapExchange(this, new UIElementDesign(targetPanel));
-                            // Set dependency properties
-                            PropertyKey<int> propertyKey;
-                            switch (stackPanel.Orientation)
-                            {
-                                case Orientation.Horizontal:
-                                    propertyKey = GridBase.ColumnPropertyKey;
-                                    break;
-
-                                case Orientation.Vertical:
-                                    propertyKey = GridBase.RowPropertyKey;
-                                    break;
-
-                                case Orientation.InDepth:
-                                    propertyKey = GridBase.LayerPropertyKey;
-                                    break;
-
-                                default:
-                                    throw new ArgumentOutOfRangeException();
-                            }
-                            for (var i = 0; i < childrenCount; i++)
-                            {
-                                SetDependencyPropertyValue(targetPanel.Children[i], propertyKey, i);
-                            }
+                            default:
+                                throw new ArgumentOutOfRangeException();
                         }
                     }
-                    else if (typeof(Canvas).IsAssignableFrom(targetType))
+
+                    if (typeof(Grid).IsAssignableFrom(targetType))
                     {
-                        // fallback to default case (for now)
+                        targetPanel = CreateGrid(colums, rows, layers, StripType.Auto);
+                    }
+                    else if (typeof(UniformGrid).IsAssignableFrom(targetType))
+                    {
+                        targetPanel = CreateUniformGrid(colums, rows, layers);
+                    }
+
+                    if (targetPanel != null)
+                    {
+                        CopySwapExchange(this, new UIElementDesign(targetPanel));
+                        // Set dependency properties
+                        PropertyKey<int> propertyKey;
+                        switch (stackPanel.Orientation)
+                        {
+                            case Orientation.Horizontal:
+                                propertyKey = GridBase.ColumnPropertyKey;
+                                break;
+
+                            case Orientation.Vertical:
+                                propertyKey = GridBase.RowPropertyKey;
+                                break;
+
+                            case Orientation.InDepth:
+                                propertyKey = GridBase.LayerPropertyKey;
+                                break;
+
+                            default:
+                                throw new ArgumentOutOfRangeException();
+                        }
+                        for (var i = 0; i < childrenCount; i++)
+                        {
+                            SetDependencyPropertyValue(targetPanel.Children[i], propertyKey, i);
+                        }
                     }
                 }
-
-                var gridBase = AssetSidePanel as GridBase;
-                if (gridBase != null)
+                else if (typeof(Canvas).IsAssignableFrom(targetType))
                 {
-                    var grid = gridBase as Grid;
-                    var uniformGrid = gridBase as UniformGrid;
-                    if (typeof(StackPanel).IsAssignableFrom(targetType))
-                    {
-                        // from a GridBase to a StackPanel
-                        //   - determine the StackPanel's orientation from the GridBase largest dimension (Colums, Rows, Layers)
-                        //   - order elements by Rows, Colums and Layers
-                        if (grid != null)
-                        {
-                            targetPanel = new StackPanel
-                            {
-                                Orientation = GetOrientation(grid.ColumnDefinitions.Count, grid.RowDefinitions.Count, grid.LayerDefinitions.Count),
-                            };
-                        }
-                        else if (uniformGrid != null)
-                        {
-                            targetPanel = new StackPanel
-                            {
-                                Orientation = GetOrientation(uniformGrid.Columns, uniformGrid.Rows, uniformGrid.Layers),
-                            };
-                        }
-                        else
-                        {
-                            // Unknown GridBase implementation
-                            targetPanel = new StackPanel();
-                        }
-                        // Order children in Western reading order: left to right, top to bottom, front to back)
-                        CopySwapExchange(this, new UIElementDesign(targetPanel), x => x.OrderBy(e => e.AssetSideUIElement.DependencyProperties.Get(GridBase.RowPropertyKey)).ThenBy(e => e.AssetSideUIElement.DependencyProperties.Get(GridBase.ColumnPropertyKey)).ThenBy(e => e.AssetSideUIElement.DependencyProperties.Get(GridBase.LayerPropertyKey)));
-                        // Remove the GridBase related dependency properties
-                        foreach (var child in targetPanel.Children)
-                        {
-                            RemoveDependencyProperty(child, GridBase.ColumnPropertyKey);
-                            RemoveDependencyProperty(child, GridBase.ColumnSpanPropertyKey);
-                            RemoveDependencyProperty(child, GridBase.RowPropertyKey);
-                            RemoveDependencyProperty(child, GridBase.RowSpanPropertyKey);
-                            RemoveDependencyProperty(child, GridBase.LayerPropertyKey);
-                            RemoveDependencyProperty(child, GridBase.LayerSpanPropertyKey);
-                        }
-                    }
-                    else if (typeof(Grid).IsAssignableFrom(targetType) && uniformGrid != null)
-                    {
-                        // from a Grid to a UniformGrid
-                        //   - keep the same column/layer/row dependency properties
-                        //   - create ColumDefinitions, RowDefinitions, LayerDefinitions from Colums, Rows, Layers resp.
-                        //   - use StripType.Star
-                        targetPanel = CreateGrid(uniformGrid.Columns, uniformGrid.Rows, uniformGrid.Layers, StripType.Star);
-                        CopySwapExchange(this, new UIElementDesign(targetPanel));
-                    }
-                    else if (typeof(UniformGrid).IsAssignableFrom(targetType) && grid != null)
-                    {
-                        // from a UniformGrid to a Grid
-                        //   - keep the same column/layer/row dependency properties
-                        //   - set Colums, Rows, Layers by counting ColumDefinitions, RowDefinitions, LayerDefinitions resp.
-                        targetPanel = CreateUniformGrid(grid.ColumnDefinitions.Count, grid.RowDefinitions.Count, grid.LayerDefinitions.Count);
-                        CopySwapExchange(this, new UIElementDesign(targetPanel));
-                    }
-                    else if (typeof(Canvas).IsAssignableFrom(targetType))
-                    {
-                        // from a Canvas to any other panel (tricky case)
-                        //   - just add the children with default behavior
-                        //     + finding the arrangement based on the relative position of children is a difficult problem (we will need some heuristic)
-                        //     + plus the user might want something else anyway, so let's not make its work more complicated
+                    // fallback to default case (for now)
+                }
+            }
 
-                        // Remove the GridBase related dependency properties
-                        foreach (var child in gridBase.Children)
+            var gridBase = AssetSidePanel as GridBase;
+            if (gridBase != null)
+            {
+                var grid = gridBase as Grid;
+                var uniformGrid = gridBase as UniformGrid;
+                if (typeof(StackPanel).IsAssignableFrom(targetType))
+                {
+                    // from a GridBase to a StackPanel
+                    //   - determine the StackPanel's orientation from the GridBase largest dimension (Colums, Rows, Layers)
+                    //   - order elements by Rows, Colums and Layers
+                    if (grid != null)
+                    {
+                        targetPanel = new StackPanel
                         {
-                            RemoveDependencyProperty(child, GridBase.ColumnPropertyKey);
-                            RemoveDependencyProperty(child, GridBase.ColumnSpanPropertyKey);
-                            RemoveDependencyProperty(child, GridBase.RowPropertyKey);
-                            RemoveDependencyProperty(child, GridBase.RowSpanPropertyKey);
-                            RemoveDependencyProperty(child, GridBase.LayerPropertyKey);
-                            RemoveDependencyProperty(child, GridBase.LayerSpanPropertyKey);
-                        }
-                        // fallback to default case (for now)
+                            Orientation = GetOrientation(grid.ColumnDefinitions.Count, grid.RowDefinitions.Count, grid.LayerDefinitions.Count),
+                        };
+                    }
+                    else if (uniformGrid != null)
+                    {
+                        targetPanel = new StackPanel
+                        {
+                            Orientation = GetOrientation(uniformGrid.Columns, uniformGrid.Rows, uniformGrid.Layers),
+                        };
+                    }
+                    else
+                    {
+                        // Unknown GridBase implementation
+                        targetPanel = new StackPanel();
+                    }
+                    // Order children in Western reading order: left to right, top to bottom, front to back)
+                    CopySwapExchange(this, new UIElementDesign(targetPanel), x => x.OrderBy(e => e.AssetSideUIElement.DependencyProperties.Get(GridBase.RowPropertyKey)).ThenBy(e => e.AssetSideUIElement.DependencyProperties.Get(GridBase.ColumnPropertyKey)).ThenBy(e => e.AssetSideUIElement.DependencyProperties.Get(GridBase.LayerPropertyKey)));
+                    // Remove the GridBase related dependency properties
+                    foreach (var child in targetPanel.Children)
+                    {
+                        RemoveDependencyProperty(child, GridBase.ColumnPropertyKey);
+                        RemoveDependencyProperty(child, GridBase.ColumnSpanPropertyKey);
+                        RemoveDependencyProperty(child, GridBase.RowPropertyKey);
+                        RemoveDependencyProperty(child, GridBase.RowSpanPropertyKey);
+                        RemoveDependencyProperty(child, GridBase.LayerPropertyKey);
+                        RemoveDependencyProperty(child, GridBase.LayerSpanPropertyKey);
                     }
                 }
-
-                var canvas = AssetSidePanel as Canvas;
-                if (canvas != null)
+                else if (typeof(Grid).IsAssignableFrom(targetType) && uniformGrid != null)
                 {
-                    // Remove the Canvas related dependency properties
-                    foreach (var child in canvas.Children)
+                    // from a Grid to a UniformGrid
+                    //   - keep the same column/layer/row dependency properties
+                    //   - create ColumDefinitions, RowDefinitions, LayerDefinitions from Colums, Rows, Layers resp.
+                    //   - use StripType.Star
+                    targetPanel = CreateGrid(uniformGrid.Columns, uniformGrid.Rows, uniformGrid.Layers, StripType.Star);
+                    CopySwapExchange(this, new UIElementDesign(targetPanel));
+                }
+                else if (typeof(UniformGrid).IsAssignableFrom(targetType) && grid != null)
+                {
+                    // from a UniformGrid to a Grid
+                    //   - keep the same column/layer/row dependency properties
+                    //   - set Colums, Rows, Layers by counting ColumDefinitions, RowDefinitions, LayerDefinitions resp.
+                    targetPanel = CreateUniformGrid(grid.ColumnDefinitions.Count, grid.RowDefinitions.Count, grid.LayerDefinitions.Count);
+                    CopySwapExchange(this, new UIElementDesign(targetPanel));
+                }
+                else if (typeof(Canvas).IsAssignableFrom(targetType))
+                {
+                    // from a Canvas to any other panel (tricky case)
+                    //   - just add the children with default behavior
+                    //     + finding the arrangement based on the relative position of children is a difficult problem (we will need some heuristic)
+                    //     + plus the user might want something else anyway, so let's not make its work more complicated
+
+                    // Remove the GridBase related dependency properties
+                    foreach (var child in gridBase.Children)
                     {
-                        RemoveDependencyProperty(child, Canvas.AbsolutePositionPropertyKey);
-                        RemoveDependencyProperty(child, Canvas.PinOriginPropertyKey);
-                        RemoveDependencyProperty(child, Canvas.RelativePositionPropertyKey);
-                        RemoveDependencyProperty(child, Canvas.RelativeSizePropertyKey);
+                        RemoveDependencyProperty(child, GridBase.ColumnPropertyKey);
+                        RemoveDependencyProperty(child, GridBase.ColumnSpanPropertyKey);
+                        RemoveDependencyProperty(child, GridBase.RowPropertyKey);
+                        RemoveDependencyProperty(child, GridBase.RowSpanPropertyKey);
+                        RemoveDependencyProperty(child, GridBase.LayerPropertyKey);
+                        RemoveDependencyProperty(child, GridBase.LayerSpanPropertyKey);
                     }
                     // fallback to default case (for now)
                 }
-
-                if (targetPanel == null)
-                {
-                    // default
-                    targetPanel = (Panel)Activator.CreateInstance(targetType);
-                    CopySwapExchange(this, new UIElementDesign(targetPanel));
-                }
-
-                Editor.UndoRedoService.SetName(transaction, $"Change layout type to {targetType.Name}");
             }
+
+            var canvas = AssetSidePanel as Canvas;
+            if (canvas != null)
+            {
+                // Remove the Canvas related dependency properties
+                foreach (var child in canvas.Children)
+                {
+                    RemoveDependencyProperty(child, Canvas.AbsolutePositionPropertyKey);
+                    RemoveDependencyProperty(child, Canvas.PinOriginPropertyKey);
+                    RemoveDependencyProperty(child, Canvas.RelativePositionPropertyKey);
+                    RemoveDependencyProperty(child, Canvas.RelativeSizePropertyKey);
+                }
+                // fallback to default case (for now)
+            }
+
+            if (targetPanel == null)
+            {
+                // default
+                targetPanel = (Panel)Activator.CreateInstance(targetType);
+                CopySwapExchange(this, new UIElementDesign(targetPanel));
+            }
+
+            Editor.UndoRedoService.SetName(transaction, $"Change layout type to {targetType.Name}");
         }
 
         private void Ungroup()
@@ -453,25 +449,23 @@ namespace Stride.Assets.Presentation.AssetEditors.UIEditor.ViewModels
                 return;
 
             // FIXME: should be similar to "move all children" then "delete previous panel"
-            using (var transaction = Editor.UndoRedoService.CreateTransaction())
+            using var transaction = Editor.UndoRedoService.CreateTransaction();
+            var children = Children.ToList();
+            var hierarchy = UIAssetPropertyGraph.CloneSubHierarchies(Asset.Session.AssetNodeContainer, Asset.Asset, children.Select(c => c.Id.ObjectId), SubHierarchyCloneFlags.None, out _);
+            // Remove all children from this panel.
+            foreach (var child in children)
             {
-                var children = Children.ToList();
-                var hierarchy = UIAssetPropertyGraph.CloneSubHierarchies(Asset.Session.AssetNodeContainer, Asset.Asset, children.Select(c => c.Id.ObjectId), SubHierarchyCloneFlags.None, out _);
-                // Remove all children from this panel.
-                foreach (var child in children)
-                {
-                    Asset.AssetHierarchyPropertyGraph.RemovePartFromAsset(child.UIElementDesign);
-                }
-                // Remove the current panel.
-                Asset.AssetHierarchyPropertyGraph.RemovePartFromAsset(UIElementDesign);
-                // Add the children into the parent panel.
-                foreach (var child in children)
-                {
-                    // TODO: might need smart rules for dependency properties (maybe use the same rules than when changing the layout type)
-                    Asset.InsertUIElement(hierarchy.Parts, hierarchy.Parts[child.Id.ObjectId], parentElement);
-                }
-                Editor.UndoRedoService.SetName(transaction, $"Ungroup {children.Count} elements");
+                Asset.AssetHierarchyPropertyGraph.RemovePartFromAsset(child.UIElementDesign);
             }
+            // Remove the current panel.
+            Asset.AssetHierarchyPropertyGraph.RemovePartFromAsset(UIElementDesign);
+            // Add the children into the parent panel.
+            foreach (var child in children)
+            {
+                // TODO: might need smart rules for dependency properties (maybe use the same rules than when changing the layout type)
+                Asset.InsertUIElement(hierarchy.Parts, hierarchy.Parts[child.Id.ObjectId], parentElement);
+            }
+            Editor.UndoRedoService.SetName(transaction, $"Ungroup {children.Count} elements");
         }
 
         private async void ChildrenContentChanged(object sender, ItemChangeEventArgs e)

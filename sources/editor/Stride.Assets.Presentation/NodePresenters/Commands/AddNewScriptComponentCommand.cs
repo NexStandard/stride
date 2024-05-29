@@ -79,19 +79,17 @@ namespace Stride.Assets.Presentation.NodePresenters.Commands
             var componentType = componentTypes.FirstOrDefault();
             if (componentType != null)
             {
-                using (var transaction = session.UndoRedoService.CreateTransaction())
-                {
-                    object component = Activator.CreateInstance(componentType);
-                    var index = new NodeIndex(nodePresenter.Children.Count);
-                    nodePresenter.AddItem(component);
-                    session.UndoRedoService.PushOperation(
-                        new AnonymousDirtyingOperation(
-                            assetPresenter.Asset.Dirtiables,
-                            () => nodePresenter.RemoveItem(component, index),
-                            () => nodePresenter.AddItem(component)));
+                using var transaction = session.UndoRedoService.CreateTransaction();
+                object component = Activator.CreateInstance(componentType);
+                var index = new NodeIndex(nodePresenter.Children.Count);
+                nodePresenter.AddItem(component);
+                session.UndoRedoService.PushOperation(
+                    new AnonymousDirtyingOperation(
+                        assetPresenter.Asset.Dirtiables,
+                        () => nodePresenter.RemoveItem(component, index),
+                        () => nodePresenter.AddItem(component)));
 
-                    session.UndoRedoService.SetName(transaction, "Add new script component.");
-                }
+                session.UndoRedoService.SetName(transaction, "Add new script component.");
             }
         }
     }

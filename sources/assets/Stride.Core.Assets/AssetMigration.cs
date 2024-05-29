@@ -75,20 +75,18 @@ namespace Stride.Core.Assets
                             serializedVersion = PackageVersion.Parse("0.0." + Convert.ToInt32(scalarVersion.Value, CultureInfo.InvariantCulture));
 
                             // Let's update to new format
-                            using (var yamlAsset = loadAsset.AsYamlAsset())
-                            {
-                                yamlAsset.DynamicRootNode.RemoveChild(nameof(Asset.SerializedVersion));
-                                AssetUpgraderBase.SetSerializableVersion(yamlAsset.DynamicRootNode, dependencyName, serializedVersion);
+                            using var yamlAsset = loadAsset.AsYamlAsset();
+                            yamlAsset.DynamicRootNode.RemoveChild(nameof(Asset.SerializedVersion));
+                            AssetUpgraderBase.SetSerializableVersion(yamlAsset.DynamicRootNode, dependencyName, serializedVersion);
 
-                                var baseBranch = yamlAsset.DynamicRootNode["~Base"];
-                                if (baseBranch != null)
+                            var baseBranch = yamlAsset.DynamicRootNode["~Base"];
+                            if (baseBranch != null)
+                            {
+                                var baseAsset = baseBranch["Asset"];
+                                if (baseAsset != null)
                                 {
-                                    var baseAsset = baseBranch["Asset"];
-                                    if (baseAsset != null)
-                                    {
-                                        baseAsset.RemoveChild(nameof(Asset.SerializedVersion));
-                                        AssetUpgraderBase.SetSerializableVersion(baseAsset, dependencyName, serializedVersion);
-                                    }
+                                    baseAsset.RemoveChild(nameof(Asset.SerializedVersion));
+                                    AssetUpgraderBase.SetSerializableVersion(baseAsset, dependencyName, serializedVersion);
                                 }
                             }
                         }
@@ -132,49 +130,47 @@ namespace Stride.Core.Assets
                 // Perform asset upgrade
                 context.Log.Verbose($"{Path.GetFullPath(assetFullPath)} needs update, from version {serializedVersion} to version {expectedVersion}");
 
-                using (var yamlAsset = loadAsset.AsYamlAsset())
+                using var yamlAsset = loadAsset.AsYamlAsset();
+                var yamlRootNode = yamlAsset.RootNode;
+
+                // Check if there is any asset updater
+                var assetUpgraders = AssetRegistry.GetAssetUpgraders(assetType, dependencyName);
+                if (assetUpgraders == null)
                 {
-                    var yamlRootNode = yamlAsset.RootNode;
-
-                    // Check if there is any asset updater
-                    var assetUpgraders = AssetRegistry.GetAssetUpgraders(assetType, dependencyName);
-                    if (assetUpgraders == null)
-                    {
-                        throw new InvalidOperationException($"Asset of type {assetType} should be updated from version {serializedVersion} to {expectedVersion}, but no asset migration path was found");
-                    }
-
-                    // Instantiate asset updaters
-                    var currentVersion = serializedVersion;
-                    while (currentVersion != expectedVersion)
-                    {
-                        PackageVersion targetVersion;
-                        // This will throw an exception if no upgrader is available for the given version, exiting the loop in case of error.
-                        var upgrader = assetUpgraders.GetUpgrader(currentVersion, out targetVersion);
-
-                        // Stop if the next version would be higher than what is expected
-                        if (untilVersion != null && targetVersion > untilVersion)
-                            break;
-
-                        upgrader.Upgrade(context, dependencyName, currentVersion, targetVersion, yamlRootNode, loadAsset);
-                        currentVersion = targetVersion;
-                    }
-
-                    // Make sure asset is updated to latest version
-                    YamlNode serializedVersionNode;
-                    PackageVersion newSerializedVersion = null;
-                    if (yamlRootNode.Children.TryGetValue(new YamlScalarNode(nameof(Asset.SerializedVersion)), out serializedVersionNode))
-                    {
-                        var newSerializedVersionForDefaultPackage = ((YamlMappingNode)serializedVersionNode).Children[new YamlScalarNode(dependencyName)];
-                        newSerializedVersion = PackageVersion.Parse(((YamlScalarNode)newSerializedVersionForDefaultPackage).Value);
-                    }
-
-                    if (untilVersion == null && newSerializedVersion != expectedVersion)
-                    {
-                        throw new InvalidOperationException($"Asset of type {assetType} was migrated, but still its new version {newSerializedVersion} doesn't match expected version {expectedVersion}.");
-                    }
-
-                    context.Log.Verbose($"{Path.GetFullPath(assetFullPath)} updated from version {serializedVersion} to version {expectedVersion}");
+                    throw new InvalidOperationException($"Asset of type {assetType} should be updated from version {serializedVersion} to {expectedVersion}, but no asset migration path was found");
                 }
+
+                // Instantiate asset updaters
+                var currentVersion = serializedVersion;
+                while (currentVersion != expectedVersion)
+                {
+                    PackageVersion targetVersion;
+                    // This will throw an exception if no upgrader is available for the given version, exiting the loop in case of error.
+                    var upgrader = assetUpgraders.GetUpgrader(currentVersion, out targetVersion);
+
+                    // Stop if the next version would be higher than what is expected
+                    if (untilVersion != null && targetVersion > untilVersion)
+                        break;
+
+                    upgrader.Upgrade(context, dependencyName, currentVersion, targetVersion, yamlRootNode, loadAsset);
+                    currentVersion = targetVersion;
+                }
+
+                // Make sure asset is updated to latest version
+                YamlNode serializedVersionNode;
+                PackageVersion newSerializedVersion = null;
+                if (yamlRootNode.Children.TryGetValue(new YamlScalarNode(nameof(Asset.SerializedVersion)), out serializedVersionNode))
+                {
+                    var newSerializedVersionForDefaultPackage = ((YamlMappingNode)serializedVersionNode).Children[new YamlScalarNode(dependencyName)];
+                    newSerializedVersion = PackageVersion.Parse(((YamlScalarNode)newSerializedVersionForDefaultPackage).Value);
+                }
+
+                if (untilVersion == null && newSerializedVersion != expectedVersion)
+                {
+                    throw new InvalidOperationException($"Asset of type {assetType} was migrated, but still its new version {newSerializedVersion} doesn't match expected version {expectedVersion}.");
+                }
+
+                context.Log.Verbose($"{Path.GetFullPath(assetFullPath)} updated from version {serializedVersion} to version {expectedVersion}");
 
                 return true;
             }

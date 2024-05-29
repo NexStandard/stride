@@ -157,108 +157,104 @@ namespace Stride.Core.Assets.CompilerApp
 
                 var vfsToDisposeList = new List<IVirtualFileProvider>();
                 // Mount VFS for output database (currently disabled because already done in ProjectBuilder.CopyBuildToOutput)
-                using (var provider = VirtualFileSystem.MountFileSystem("/data_output", outputDirectory))
+                using var provider = VirtualFileSystem.MountFileSystem("/data_output", outputDirectory);
+                VirtualFileSystem.CreateDirectory("/data_output/db");
+
+                // Mount output database and delete previous bundles that shouldn't exist anymore (others should be overwritten)
+                using var outputDatabase = new ObjectDatabase("/data_output/db", VirtualFileSystem.ApplicationDatabaseIndexName, loadDefaultBundle: false);
+                try
                 {
-                    VirtualFileSystem.CreateDirectory("/data_output/db");
+                    outputDatabase.LoadBundle("default").GetAwaiter().GetResult();
+                }
+                catch (Exception)
+                {
+                    logger.Info("Generate bundles: Tried to load previous 'default' bundle but it was invalid. Deleting it...");
+                    outputDatabase.BundleBackend.DeleteBundles(x => Path.GetFileNameWithoutExtension(x) == "default");
+                }
+                var outputBundleBackend = outputDatabase.BundleBackend;
 
-                    // Mount output database and delete previous bundles that shouldn't exist anymore (others should be overwritten)
-                    using (var outputDatabase = new ObjectDatabase("/data_output/db", VirtualFileSystem.ApplicationDatabaseIndexName, loadDefaultBundle: false))
+                var outputGroupBundleBackends = new Dictionary<string, BundleOdbBackend>();
+
+                if (rootPackage.OutputGroupDirectories != null)
+                {
+                    foreach (var item in rootPackage.OutputGroupDirectories)
                     {
-                        try
-                        {
-                            outputDatabase.LoadBundle("default").GetAwaiter().GetResult();
-                        }
-                        catch (Exception)
-                        {
-                            logger.Info("Generate bundles: Tried to load previous 'default' bundle but it was invalid. Deleting it...");
-                            outputDatabase.BundleBackend.DeleteBundles(x => Path.GetFileNameWithoutExtension(x) == "default");
-                        }
-                        var outputBundleBackend = outputDatabase.BundleBackend;
+                        var path = Path.Combine(rootPackage.RootDirectory, item.Value);
+                        var vfsPath = "/data_group_" + item.Key;
+                        var vfsDatabasePath = vfsPath + "/db";
 
-                        var outputGroupBundleBackends = new Dictionary<string, BundleOdbBackend>();
+                        // Mount VFS for output database (currently disabled because already done in ProjectBuilder.CopyBuildToOutput)
+                        vfsToDisposeList.Add(VirtualFileSystem.MountFileSystem(vfsPath, path));
+                        VirtualFileSystem.CreateDirectory(vfsDatabasePath);
 
-                        if (rootPackage.OutputGroupDirectories != null)
-                        {
-                            foreach (var item in rootPackage.OutputGroupDirectories)
-                            {
-                                var path = Path.Combine(rootPackage.RootDirectory, item.Value);
-                                var vfsPath = "/data_group_" + item.Key;
-                                var vfsDatabasePath = vfsPath + "/db";
+                        outputGroupBundleBackends.Add(item.Key, new BundleOdbBackend(vfsDatabasePath));
+                    }
+                }
 
-                                // Mount VFS for output database (currently disabled because already done in ProjectBuilder.CopyBuildToOutput)
-                                vfsToDisposeList.Add(VirtualFileSystem.MountFileSystem(vfsPath, path));
-                                VirtualFileSystem.CreateDirectory(vfsDatabasePath);
+                // Pass7: Assign bundle backends
+                foreach (var bundle in sortedBundles)
+                {
+                    BundleOdbBackend bundleBackend;
+                    if (bundle.Source.OutputGroup == null)
+                    {
+                        // No output group, use OutputDirectory
+                        bundleBackend = outputBundleBackend;
+                    }
+                    else if (!outputGroupBundleBackends.TryGetValue(bundle.Source.OutputGroup, out bundleBackend))
+                    {
+                        // Output group not found in OutputGroupDirectories, let's issue a warning and fallback to OutputDirectory
+                        logger.Warning($"Generate bundles: Could not find OutputGroup {bundle.Source.OutputGroup} for bundle {bundle.Name} in ProjectBuildProfile.OutputGroupDirectories");
+                        bundleBackend = outputBundleBackend;
+                    }
 
-                                outputGroupBundleBackends.Add(item.Key, new BundleOdbBackend(vfsDatabasePath));
-                            }
-                        }
+                    bundle.BundleBackend = bundleBackend;
+                }
 
-                        // Pass7: Assign bundle backends
-                        foreach (var bundle in sortedBundles)
-                        {
-                            BundleOdbBackend bundleBackend;
-                            if (bundle.Source.OutputGroup == null)
-                            {
-                                // No output group, use OutputDirectory
-                                bundleBackend = outputBundleBackend;
-                            }
-                            else if (!outputGroupBundleBackends.TryGetValue(bundle.Source.OutputGroup, out bundleBackend))
-                            {
-                                // Output group not found in OutputGroupDirectories, let's issue a warning and fallback to OutputDirectory
-                                logger.Warning($"Generate bundles: Could not find OutputGroup {bundle.Source.OutputGroup} for bundle {bundle.Name} in ProjectBuildProfile.OutputGroupDirectories");
-                                bundleBackend = outputBundleBackend;
-                            }
+                CleanUnknownBundles(outputBundleBackend, resolvedBundles);
 
-                            bundle.BundleBackend = bundleBackend;
-                        }
+                foreach (var bundleBackend in outputGroupBundleBackends)
+                {
+                    CleanUnknownBundles(bundleBackend.Value, resolvedBundles);
+                }
 
-                        CleanUnknownBundles(outputBundleBackend, resolvedBundles);
+                // Pass8: Pack actual data
+                foreach (var bundle in sortedBundles)
+                {
+                    // Compute dependencies (by bundle names)
+                    var dependencies = bundle.Dependencies.Select(x => x.Name).Distinct().ToList();
 
-                        foreach (var bundleBackend in outputGroupBundleBackends)
-                        {
-                            CleanUnknownBundles(bundleBackend.Value, resolvedBundles);
-                        }
+                    BundleOdbBackend bundleBackend;
+                    if (bundle.Source.OutputGroup == null)
+                    {
+                        // No output group, use OutputDirectory
+                        bundleBackend = outputBundleBackend;
+                    }
+                    else if (!outputGroupBundleBackends.TryGetValue(bundle.Source.OutputGroup, out bundleBackend))
+                    {
+                        // Output group not found in OutputGroupDirectories, let's issue a warning and fallback to OutputDirectory
+                        logger.Warning($"Generate bundles: Could not find OutputGroup {bundle.Source.OutputGroup} for bundle {bundle.Name} in ProjectBuildProfile.OutputGroupDirectories");
+                        bundleBackend = outputBundleBackend;
+                    }
 
-                        // Pass8: Pack actual data
-                        foreach (var bundle in sortedBundles)
-                        {
-                            // Compute dependencies (by bundle names)
-                            var dependencies = bundle.Dependencies.Select(x => x.Name).Distinct().ToList();
+                    var topBundleUrl = objDatabase.CreateBundle(bundle.ObjectIds.ToArray(), bundle.Name, bundleBackend, disableCompressionIds, bundle.IndexMap, dependencies, useIncrementalBundles);
+                    // Expand list of incremental bundles
+                    BundleOdbBackend.ReadBundleHeader(topBundleUrl, out var bundleUrls);
+                    foreach (var bundleUrl in bundleUrls)
+                    {
+                        bundleFiles.Add(VirtualFileSystem.GetAbsolutePath(bundleUrl));
+                    }
+                }
 
-                            BundleOdbBackend bundleBackend;
-                            if (bundle.Source.OutputGroup == null)
-                            {
-                                // No output group, use OutputDirectory
-                                bundleBackend = outputBundleBackend;
-                            }
-                            else if (!outputGroupBundleBackends.TryGetValue(bundle.Source.OutputGroup, out bundleBackend))
-                            {
-                                // Output group not found in OutputGroupDirectories, let's issue a warning and fallback to OutputDirectory
-                                logger.Warning($"Generate bundles: Could not find OutputGroup {bundle.Source.OutputGroup} for bundle {bundle.Name} in ProjectBuildProfile.OutputGroupDirectories");
-                                bundleBackend = outputBundleBackend;
-                            }
-
-                            var topBundleUrl = objDatabase.CreateBundle(bundle.ObjectIds.ToArray(), bundle.Name, bundleBackend, disableCompressionIds, bundle.IndexMap, dependencies, useIncrementalBundles);
-                            // Expand list of incremental bundles
-                            BundleOdbBackend.ReadBundleHeader(topBundleUrl, out var bundleUrls);
-                            foreach (var bundleUrl in bundleUrls)
-                            {
-                                bundleFiles.Add(VirtualFileSystem.GetAbsolutePath(bundleUrl));
-                            }
-                        }
-
-                        // Dispose VFS created for groups
-                        foreach (var vfsToDispose in vfsToDisposeList)
-                        {
-                            try
-                            {
-                                vfsToDispose.Dispose();
-                            }
-                            catch (Exception ex)
-                            {
-                                logger.Error($"Unable to dispose VFS [{vfsToDispose.RootPath}]", ex);
-                            }
-                        }
+                // Dispose VFS created for groups
+                foreach (var vfsToDispose in vfsToDisposeList)
+                {
+                    try
+                    {
+                        vfsToDispose.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.Error($"Unable to dispose VFS [{vfsToDispose.RootPath}]", ex);
                     }
                 }
             }
@@ -301,27 +297,25 @@ namespace Stride.Core.Assets.CompilerApp
                 referencesByObjectId[objectId] = references = new List<string>();
 
                 // Open stream to read list of chunk references
-                using (var stream = databaseFileProvider.OpenStream(DatabaseFileProvider.ObjectIdUrl + objectId, VirtualFileMode.Open, VirtualFileAccess.Read))
+                using var stream = databaseFileProvider.OpenStream(DatabaseFileProvider.ObjectIdUrl + objectId, VirtualFileMode.Open, VirtualFileAccess.Read);
+                // Read chunk header
+                var streamReader = new BinarySerializationReader(stream);
+                var header = ChunkHeader.Read(streamReader);
+
+                // Only process chunks
+                if (header != null)
                 {
-                    // Read chunk header
-                    var streamReader = new BinarySerializationReader(stream);
-                    var header = ChunkHeader.Read(streamReader);
-
-                    // Only process chunks
-                    if (header != null)
+                    if (header.OffsetToReferences != -1)
                     {
-                        if (header.OffsetToReferences != -1)
+                        // Seek to where references are stored and deserialize them
+                        streamReader.UnderlyingStream.Seek(header.OffsetToReferences, SeekOrigin.Begin);
+
+                        List<ChunkReference> chunkReferences = null;
+                        streamReader.Serialize(ref chunkReferences, ArchiveMode.Deserialize);
+
+                        foreach (var chunkReference in chunkReferences)
                         {
-                            // Seek to where references are stored and deserialize them
-                            streamReader.UnderlyingStream.Seek(header.OffsetToReferences, SeekOrigin.Begin);
-
-                            List<ChunkReference> chunkReferences = null;
-                            streamReader.Serialize(ref chunkReferences, ArchiveMode.Deserialize);
-
-                            foreach (var chunkReference in chunkReferences)
-                            {
-                                references.Add(chunkReference.Location);
-                            }
+                            references.Add(chunkReference.Location);
                         }
                     }
                 }

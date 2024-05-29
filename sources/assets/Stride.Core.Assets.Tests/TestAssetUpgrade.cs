@@ -141,8 +141,8 @@ namespace Stride.Core.Assets.Tests
 
             if (needMigration)
             {
-                using (var fileStream = new FileStream(outputFilePath, FileMode.Truncate))
-                    fileStream.Write(loadingFilePath.AssetContent, 0, loadingFilePath.AssetContent.Length);
+                using var fileStream = new FileStream(outputFilePath, FileMode.Truncate);
+                fileStream.Write(loadingFilePath.AssetContent, 0, loadingFilePath.AssetContent.Length);
             }
 
             Console.WriteLine(File.ReadAllText(outputFilePath).Trim());

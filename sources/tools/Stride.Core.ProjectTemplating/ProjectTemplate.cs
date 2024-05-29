@@ -131,11 +131,9 @@ namespace Stride.Core.ProjectTemplating
                     var host = new ProjectTemplatingHost(log, FilePath, templateDirectory.FullName, expandoOptions, Assemblies.Select(assembly => assembly.FullPath));
                     var newTemplateAsString = engine.ProcessTemplate(content, host);
                     Files.Clear();
-                    using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(newTemplateAsString)))
-                    {
-                        var newTemplate = (ProjectTemplate)YamlSerializer.Default.Deserialize(stream);
-                        Files.AddRange(newTemplate.Files);
-                    }
+                    using var stream = new MemoryStream(Encoding.UTF8.GetBytes(newTemplateAsString));
+                    var newTemplate = (ProjectTemplate)YamlSerializer.Default.Deserialize(stream);
+                    Files.AddRange(newTemplate.Files);
                 }
 
                 // Iterate on each files
@@ -297,10 +295,8 @@ namespace Stride.Core.ProjectTemplating
             }
             else
             {
-                using (var stream = new FileStream(fullFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    template = (ProjectTemplate)YamlSerializer.Default.Deserialize(stream);
-                }
+                using var stream = new FileStream(fullFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                template = (ProjectTemplate)YamlSerializer.Default.Deserialize(stream);
             }
 
             template.filePath = fullFilePath;

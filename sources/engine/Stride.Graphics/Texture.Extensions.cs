@@ -72,21 +72,15 @@ namespace Stride.Graphics
 
             using (var imageStream = new MemoryStream(data))
             {
-                using (var image = Image.Load(imageStream, loadAsSRgb))
-                {
-                    result = Texture.New(graphicsDevice, image);
-                }
+                using var image = Image.Load(imageStream, loadAsSRgb);
+                result = Texture.New(graphicsDevice, image);
             }
 
             result.Reload = (graphicsResource, services) =>
             {
-                using (var imageStream = new MemoryStream(data))
-                {
-                    using (var image = Image.Load(imageStream, loadAsSRgb))
-                    {
-                        ((Texture)graphicsResource).Recreate(image.ToDataBox());
-                    }
-                }
+                using var imageStream = new MemoryStream(data);
+                using var image = Image.Load(imageStream, loadAsSRgb);
+                ((Texture)graphicsResource).Recreate(image.ToDataBox());
             };
 
             return result;

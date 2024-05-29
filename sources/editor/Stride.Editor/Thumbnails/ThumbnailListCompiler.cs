@@ -46,35 +46,33 @@ namespace Stride.Editor.Thumbnails
         {
             if (assetItem == null) throw new ArgumentNullException(nameof(assetItem));
 
-            using (var context = new ThumbnailCompilerContext
+            using var context = new ThumbnailCompilerContext
             {
                 Platform = PlatformType.Windows
-            })
+            };
+            context.SetGameSettingsAsset(gameSettings);
+            context.CompilationContext = typeof(PreviewCompilationContext);
+
+            context.Properties.Set(ThumbnailGenerator.Key, generator);
+            context.ThumbnailBuilt += builtAction;
+
+            var result = new AssetCompilerResult();
+
+            if (!staticThumbnail)
             {
-                context.SetGameSettingsAsset(gameSettings);
-                context.CompilationContext = typeof(PreviewCompilationContext);
-
-                context.Properties.Set(ThumbnailGenerator.Key, generator);
-                context.ThumbnailBuilt += builtAction;
-
-                var result = new AssetCompilerResult();
-
-                if (!staticThumbnail)
-                {
-                    //compile the actual asset                  
-                    result = dependenciesCompiler.Prepare(context, assetItem);
-                }
-
-                //compile the actual thumbnail
-                var thumbnailStep = CompileItem(context, result, assetItem);
-
-                foreach (var buildStep in result.BuildSteps)
-                {
-                    BuildStep.LinkBuildSteps(buildStep, thumbnailStep);
-                }
-                result.BuildSteps.Add(thumbnailStep);
-                return result.BuildSteps;
+                //compile the actual asset                  
+                result = dependenciesCompiler.Prepare(context, assetItem);
             }
+
+            //compile the actual thumbnail
+            var thumbnailStep = CompileItem(context, result, assetItem);
+
+            foreach (var buildStep in result.BuildSteps)
+            {
+                BuildStep.LinkBuildSteps(buildStep, thumbnailStep);
+            }
+            result.BuildSteps.Add(thumbnailStep);
+            return result.BuildSteps;
         }
     }
 }

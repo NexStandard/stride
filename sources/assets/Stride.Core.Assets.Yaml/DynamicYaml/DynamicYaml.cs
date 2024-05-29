@@ -29,10 +29,8 @@ namespace Stride.Core.Yaml
             string assetAsString;
             try
             {
-                using (var assetStreamReader = new StreamReader(stream, Encoding.UTF8))
-                {
-                    assetAsString = assetStreamReader.ReadToEnd();
-                }
+                using var assetStreamReader = new StreamReader(stream, Encoding.UTF8);
+                assetAsString = assetStreamReader.ReadToEnd();
             }
             finally
             {
@@ -76,10 +74,8 @@ namespace Stride.Core.Yaml
         public void WriteTo(Stream stream, SerializerSettings settings)
         {
             if (stream == null) throw new ArgumentNullException(nameof(stream));
-            using (var streamWriter = new StreamWriter(stream))
-            {
-                WriteTo(streamWriter, DefaultSettings);
-            }
+            using var streamWriter = new StreamWriter(stream);
+            WriteTo(streamWriter, DefaultSettings);
         }
 
         /// <summary>
@@ -97,11 +93,9 @@ namespace Stride.Core.Yaml
 
         public override string ToString()
         {
-            using (var streamWriter = new StringWriter())
-            {
-                WriteTo(streamWriter, DefaultSettings);
-                return streamWriter.ToString();
-            }
+            using var streamWriter = new StringWriter();
+            WriteTo(streamWriter, DefaultSettings);
+            return streamWriter.ToString();
         }
 
         private static Stream GetSafeStream(string text)

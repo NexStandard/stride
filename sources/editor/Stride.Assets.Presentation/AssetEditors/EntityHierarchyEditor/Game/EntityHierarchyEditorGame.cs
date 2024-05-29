@@ -240,16 +240,14 @@ namespace Stride.Assets.Presentation.AssetEditors.EntityHierarchyEditor.Game
                     if (result.HasErrors)
                         return;
 
-                    using (var stream = File.Open(effectLogPath, FileMode.OpenOrCreate, FileAccess.ReadWrite))
-                    {
-                        var requests = AssetYamlSerializer.Default.DeserializeMultiple<EffectCompileRequest>(stream).ToList();
-                        if (requests.Contains(request))
-                            return;
+                    using var stream = File.Open(effectLogPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+                    var requests = AssetYamlSerializer.Default.DeserializeMultiple<EffectCompileRequest>(stream).ToList();
+                    if (requests.Contains(request))
+                        return;
 
-                        var documentMarker = Encoding.UTF8.GetBytes("---\r\n");
-                        stream.Write(documentMarker, 0, documentMarker.Length);
-                        AssetYamlSerializer.Default.Serialize(stream, request);
-                    }
+                    var documentMarker = Encoding.UTF8.GetBytes("---\r\n");
+                    stream.Write(documentMarker, 0, documentMarker.Length);
+                    AssetYamlSerializer.Default.Serialize(stream, request);
                 };
             }
 

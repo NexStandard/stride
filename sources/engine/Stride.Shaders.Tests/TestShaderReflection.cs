@@ -172,20 +172,18 @@ namespace Stride.Shaders.Tests
                 Assert.False(byteCodeTask.Result.CompilationLog.HasErrors);
 
                 var byteCode = byteCodeTask.Result.Bytecode;
-                using (var graphicsDevice = GraphicsDevice.New())
-                {
-                    // The effect constructor updates the effect reflection
-                    var effect = new Effect(graphicsDevice, byteCode);
+                using var graphicsDevice = GraphicsDevice.New();
+                // The effect constructor updates the effect reflection
+                var effect = new Effect(graphicsDevice, byteCode);
 
-                    var members = byteCode.Reflection.ConstantBuffers[0].Members;
-                    foreach (var v in variables)
-                    {
-                        // Fetch the default value via the key - the previous test already checked whether the default value is present in the value description
-                        var effectValueDescription = members.FirstOrDefault(k => k.KeyInfo.KeyName == $"{shaderClassName}.{v.name}");
-                        var defaultValue = effectValueDescription.KeyInfo.Key.DefaultValueMetadata.GetDefaultValue();
-                        Assert.NotNull(defaultValue);
-                        Assert.Equal(v.clrValue, defaultValue);
-                    }
+                var members = byteCode.Reflection.ConstantBuffers[0].Members;
+                foreach (var v in variables)
+                {
+                    // Fetch the default value via the key - the previous test already checked whether the default value is present in the value description
+                    var effectValueDescription = members.FirstOrDefault(k => k.KeyInfo.KeyName == $"{shaderClassName}.{v.name}");
+                    var defaultValue = effectValueDescription.KeyInfo.Key.DefaultValueMetadata.GetDefaultValue();
+                    Assert.NotNull(defaultValue);
+                    Assert.Equal(v.clrValue, defaultValue);
                 }
             }
         }

@@ -735,8 +735,8 @@ namespace Stride.Graphics
             else
             {
                 // Unefficient way to use the Copy method using dynamic staging texture
-                using (var throughStaging = this.ToStaging())
-                    return GetData(commandList, throughStaging, toData, arraySlice, mipSlice, doNotWait);
+                using var throughStaging = this.ToStaging();
+                return GetData(commandList, throughStaging, toData, arraySlice, mipSlice, doNotWait);
             }
         }
 
@@ -1055,8 +1055,8 @@ namespace Stride.Graphics
         /// <returns>A texture</returns>
         public static Texture Load(GraphicsDevice device, Stream stream, TextureFlags textureFlags = TextureFlags.ShaderResource, GraphicsResourceUsage usage = GraphicsResourceUsage.Immutable, bool loadAsSRGB = false)
         {
-            using (var image = Image.Load(stream, loadAsSRGB))
-                return New(device, image, textureFlags, usage);
+            using var image = Image.Load(stream, loadAsSRGB);
+            return New(device, image, textureFlags, usage);
         }
 
         /// <summary>
@@ -1131,8 +1131,8 @@ namespace Stride.Graphics
         public void Save(CommandList commandList, Stream stream, ImageFileType fileType)
         {
             if (stream == null) throw new ArgumentNullException("stream");
-            using (var staging = ToStaging())
-                Save(commandList, stream, staging, fileType);
+            using var staging = ToStaging();
+            Save(commandList, stream, staging, fileType);
         }
 
         /// <summary>
@@ -1143,8 +1143,8 @@ namespace Stride.Graphics
             if (Usage == GraphicsResourceUsage.Staging)
                 return GetDataAsImage(commandList, this); // Directly if this is a staging resource
 
-            using (var stagingTexture = ToStaging())
-                return GetDataAsImage(commandList, stagingTexture);
+            using var stagingTexture = ToStaging();
+            return GetDataAsImage(commandList, stagingTexture);
         }
 
         /// <summary>
@@ -1190,8 +1190,8 @@ namespace Stride.Graphics
         /// <exception cref="ArgumentException">If stagingTexture is not a staging texture.</exception>
         public void Save(CommandList commandList, Stream stream, Texture stagingTexture, ImageFileType fileType)
         {
-            using (var image = GetDataAsImage(commandList, stagingTexture))
-                image.Save(stream, fileType);
+            using var image = GetDataAsImage(commandList, stagingTexture);
+            image.Save(stream, fileType);
         }
 
         /// <summary>

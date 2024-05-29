@@ -295,13 +295,11 @@ namespace Stride.Assets.Tests
 
         private AtlasTextureElement CreateElementFromFile(string name, int borderSize, TextureAddressMode borderModeU, TextureAddressMode borderModeV, RotableRectangle? imageRegion = null)
         {
-            using (var texTool = new TextureTool())
-            {
-                var image = LoadImage(texTool, new UFile(ImageInputPath + "/" + name + ".png"));
-                var region = imageRegion ?? new RotableRectangle(0, 0, image.Description.Width, image.Description.Height);
+            using var texTool = new TextureTool();
+            var image = LoadImage(texTool, new UFile(ImageInputPath + "/" + name + ".png"));
+            var region = imageRegion ?? new RotableRectangle(0, 0, image.Description.Width, image.Description.Height);
 
-                return new AtlasTextureElement(name, image, region, borderSize, borderModeU, borderModeV, Color.SteelBlue);
-            }
+            return new AtlasTextureElement(name, image, region, borderSize, borderModeU, borderModeV, Color.SteelBlue);
         }
 
         private Image CreateMockTexture(int width, int height, Color color)
@@ -532,14 +530,12 @@ namespace Stride.Assets.Tests
         {
             // save
             Directory.CreateDirectory(ImageOutputPath);
-            outputImage.Save(new FileStream(ImageOutputPath + fileName + extension.ToFileExtension(), FileMode.Create), extension); 
+            outputImage.Save(new FileStream(ImageOutputPath + fileName + extension.ToFileExtension(), FileMode.Create), extension);
 
             // Compare
-            using(var texTool = new TextureTool())
-            {
-                var referenceImage = LoadImage(texTool, new UFile(GoldImagePath + "/" + fileName + extension.ToFileExtension()));
-                Assert.True(CompareImages(outputImage, referenceImage), "The texture outputted differs from the gold image.");
-            }
+            using var texTool = new TextureTool();
+            var referenceImage = LoadImage(texTool, new UFile(GoldImagePath + "/" + fileName + extension.ToFileExtension()));
+            Assert.True(CompareImages(outputImage, referenceImage), "The texture outputted differs from the gold image.");
         }
 
         // Note: this comparison function is not very robust and might have to be improved at some point (does not take in account RowPitch, etc...)
@@ -907,16 +903,14 @@ namespace Stride.Assets.Tests
 
         private Image LoadImage(TextureTool texTool, UFile sourcePath)
         {
-            using (var texImage = texTool.Load(sourcePath, false))
-            {
-                // Decompresses the specified texImage
-                texTool.Decompress(texImage, false);
+            using var texImage = texTool.Load(sourcePath, false);
+            // Decompresses the specified texImage
+            texTool.Decompress(texImage, false);
 
-                if (texImage.Format == PixelFormat.B8G8R8A8_UNorm)
-                    texTool.SwitchChannel(texImage);
+            if (texImage.Format == PixelFormat.B8G8R8A8_UNorm)
+                texTool.SwitchChannel(texImage);
 
-                return texTool.ConvertToStrideImage(texImage);
-            }
+            return texTool.ConvertToStrideImage(texImage);
         }
     }
 }

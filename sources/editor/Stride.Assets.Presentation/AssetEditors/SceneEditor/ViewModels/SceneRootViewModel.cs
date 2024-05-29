@@ -299,24 +299,22 @@ namespace Stride.Assets.Presentation.AssetEditors.SceneEditor.ViewModels
             }
             // Note: scene are inserted after all entities
             index -= EntityCount;
-            using (var transaction = Editor.UndoRedoService.CreateTransaction())
+            using var transaction = Editor.UndoRedoService.CreateTransaction();
+            // Move the roots in two steps: first remove all, then insert all
+            foreach (var root in roots)
             {
-                // Move the roots in two steps: first remove all, then insert all
-                foreach (var root in roots)
-                {
-                    // Some of the roots we're moving might already be children of this object, let's count for their removal in the insertion index.
-                    var rootIndex = ChildScenes.IndexOf(root);
-                    if (rootIndex >= 0 && rootIndex < index)
-                        --index;
+                // Some of the roots we're moving might already be children of this object, let's count for their removal in the insertion index.
+                var rootIndex = ChildScenes.IndexOf(root);
+                if (rootIndex >= 0 && rootIndex < index)
+                    --index;
 
-                    root.ParentScene?.SceneAsset.Children.Remove(root.SceneAsset);
-                }
-                foreach (var root in roots)
-                {
-                    SceneAsset.Children.Insert(index++, root.SceneAsset);
-                }
-                Editor.UndoRedoService.SetName(transaction, $"Move child scene{(roots.Count > 1 ? "s" : "")}");
+                root.ParentScene?.SceneAsset.Children.Remove(root.SceneAsset);
             }
+            foreach (var root in roots)
+            {
+                SceneAsset.Children.Insert(index++, root.SceneAsset);
+            }
+            Editor.UndoRedoService.SetName(transaction, $"Move child scene{(roots.Count > 1 ? "s" : "")}");
         }
 
         /// <summary>

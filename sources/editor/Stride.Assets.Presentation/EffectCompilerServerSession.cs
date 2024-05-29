@@ -213,50 +213,48 @@ namespace Stride.Assets.Presentation
         /// </summary>
         private void ImportEffectLog(PackageViewModel package)
         {
-            using (var transaction = session.UndoRedoService.CreateTransaction())
+            using var transaction = session.UndoRedoService.CreateTransaction();
+            CheckEffectLogAsset(package);
+
+            // Create asset (on first time)
+            if (effectLogViewModel == null)
             {
+                var effectLogAsset = new EffectLogAsset();
+                var assetItem = new AssetItem(EffectLogAsset.DefaultFile, effectLogAsset);
+
+                // Add created asset to project
+                effectLogViewModel = (EffectLogViewModel)package.CreateAsset(package.AssetMountPoint, assetItem, true, null);
+
                 CheckEffectLogAsset(package);
-
-                // Create asset (on first time)
-                if (effectLogViewModel == null)
-                {
-                    var effectLogAsset = new EffectLogAsset();
-                    var assetItem = new AssetItem(EffectLogAsset.DefaultFile, effectLogAsset);
-
-                    // Add created asset to project
-                    effectLogViewModel = (EffectLogViewModel)package.CreateAsset(package.AssetMountPoint, assetItem, true, null);
-
-                    CheckEffectLogAsset(package);
-                }
-
-                // Import shaders
-                foreach (var effectCompilerResult in pendingEffects)
-                {
-                    if (!effectLogStore.Contains(effectCompilerResult))
-                        effectLogStore[effectCompilerResult] = true;
-                }
-
-                // Reset current list of shaders to import
-                var oldPendingEffects = pendingEffects;
-                session.UndoRedoService.PushOperation(new AnonymousDirtyingOperation(Enumerable.Empty<IDirtiable>(),
-                    () => { pendingEffects = oldPendingEffects; session.ImportEffectLogPendingCount = oldPendingEffects.Count; },
-                    () => { pendingEffects = new HashSet<EffectCompileRequest>(); session.ImportEffectLogPendingCount = 0; }));
-
-                pendingEffects = new HashSet<EffectCompileRequest>();
-                session.ImportEffectLogPendingCount = 0;
-
-                // Extract current asset data
-                var effectLogData = effectLogStream.ToArray();
-
-                // Update asset
-                effectLogViewModel.Text = Encoding.UTF8.GetString(effectLogData, 0, effectLogData.Length);
-                effectLogText = effectLogViewModel.Text;
-
-                // Select current asset
-                session.ActiveAssetView.SelectAssets(new[] { effectLogViewModel });
-
-                session.UndoRedoService.SetName(transaction, "Import effect log");
             }
+
+            // Import shaders
+            foreach (var effectCompilerResult in pendingEffects)
+            {
+                if (!effectLogStore.Contains(effectCompilerResult))
+                    effectLogStore[effectCompilerResult] = true;
+            }
+
+            // Reset current list of shaders to import
+            var oldPendingEffects = pendingEffects;
+            session.UndoRedoService.PushOperation(new AnonymousDirtyingOperation(Enumerable.Empty<IDirtiable>(),
+                () => { pendingEffects = oldPendingEffects; session.ImportEffectLogPendingCount = oldPendingEffects.Count; },
+                () => { pendingEffects = new HashSet<EffectCompileRequest>(); session.ImportEffectLogPendingCount = 0; }));
+
+            pendingEffects = new HashSet<EffectCompileRequest>();
+            session.ImportEffectLogPendingCount = 0;
+
+            // Extract current asset data
+            var effectLogData = effectLogStream.ToArray();
+
+            // Update asset
+            effectLogViewModel.Text = Encoding.UTF8.GetString(effectLogData, 0, effectLogData.Length);
+            effectLogText = effectLogViewModel.Text;
+
+            // Select current asset
+            session.ActiveAssetView.SelectAssets(new[] { effectLogViewModel });
+
+            session.UndoRedoService.SetName(transaction, "Import effect log");
         }
 
         private void HandleEffectCompilerRequestedPacket(RemoteEffectCompilerEffectRequested packet, PackageViewModel package)

@@ -257,121 +257,109 @@ namespace Stride.Assets.Presentation.AssetEditors.GraphicsCompositorEditor.ViewM
 
         private void RemoveSelectedLinks()
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            var toRemove = SelectedRendererLinks.Cast<GraphicsCompositorLinkViewModel>().ToList();
+            // Clear selection first, so we don't try to unselect items that don't exist anymore later.
+            SelectedRendererLinks.Clear();
+
+            foreach (var viewModel in toRemove)
             {
-                var toRemove = SelectedRendererLinks.Cast<GraphicsCompositorLinkViewModel>().ToList();
-                // Clear selection first, so we don't try to unselect items that don't exist anymore later.
-                SelectedRendererLinks.Clear();
-
-                foreach (var viewModel in toRemove)
-                {
-                    viewModel.SourceSlot.ClearLink();
-                    viewModel.Destroy();
-                    viewModel.SourceSlot.Links.Remove(viewModel);
-                    viewModel.TargetSlot.Links.Remove(viewModel);
-                }
-
-                UndoRedoService.SetName(transaction, "Delete link(s)");
+                viewModel.SourceSlot.ClearLink();
+                viewModel.Destroy();
+                viewModel.SourceSlot.Links.Remove(viewModel);
+                viewModel.TargetSlot.Links.Remove(viewModel);
             }
+
+            UndoRedoService.SetName(transaction, "Delete link(s)");
         }
 
         private void RemoveSelectedSharedRenderers()
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            var toRemove = SelectedSharedRenderers.OfType<SharedRendererBlockViewModel>().ToList();
+            // Clear selection first, so we don't try to unselect items that don't exist anymore later.
+            SelectedSharedRenderers.Clear();
+
+            foreach (var viewModel in toRemove)
             {
-                var toRemove = SelectedSharedRenderers.OfType<SharedRendererBlockViewModel>().ToList();
-                // Clear selection first, so we don't try to unselect items that don't exist anymore later.
-                SelectedSharedRenderers.Clear();
+                // Find index
+                var index = Asset.Asset.SharedRenderers.IndexOf(viewModel.GetSharedRenderer());
+                if (index < 0)
+                    continue;
 
-                foreach (var viewModel in toRemove)
-                {
-                    // Find index
-                    var index = Asset.Asset.SharedRenderers.IndexOf(viewModel.GetSharedRenderer());
-                    if (index < 0)
-                        continue;
-
-                    // Remove
-                    var itemIndex = new NodeIndex(index);
-                    sharedRenderersNode.Remove(viewModel.GetSharedRenderer(), itemIndex);
-                }
-
-                UndoRedoService.SetName(transaction, "Delete renderer(s)");
+                // Remove
+                var itemIndex = new NodeIndex(index);
+                sharedRenderersNode.Remove(viewModel.GetSharedRenderer(), itemIndex);
             }
+
+            UndoRedoService.SetName(transaction, "Delete renderer(s)");
         }
 
         private void AddNewRenderStage()
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                var renderStage = new RenderStage();
-                renderStagesNode.Add(renderStage);
+            using var transaction = UndoRedoService.CreateTransaction();
+            var renderStage = new RenderStage();
+            renderStagesNode.Add(renderStage);
 
-                UndoRedoService.SetName(transaction, "Create new render stage");
-            }
+            UndoRedoService.SetName(transaction, "Create new render stage");
         }
 
         private void RemoveSelectedRenderStages()
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            var toRemove = SelectedRenderStages.Cast<RenderStageViewModel>().Select(x => x.RenderStage).ToList();
+            // Clear selection first, so we don't try to unselect items that don't exist anymore later.
+            SelectedRenderStages.Clear();
+
+            foreach (var renderStage in toRemove)
             {
-                var toRemove = SelectedRenderStages.Cast<RenderStageViewModel>().Select(x => x.RenderStage).ToList();
-                // Clear selection first, so we don't try to unselect items that don't exist anymore later.
-                SelectedRenderStages.Clear();
+                // Find index
+                var index = Asset.Asset.RenderStages.IndexOf(renderStage);
+                if (index < 0)
+                    continue;
 
-                foreach (var renderStage in toRemove)
-                {
-                    // Find index
-                    var index = Asset.Asset.RenderStages.IndexOf(renderStage);
-                    if (index < 0)
-                        continue;
+                // Clear references to this object
+                Asset.PropertyGraph.ClearReferencesToObjects(renderStage.Id.Yield());
 
-                    // Clear references to this object
-                    Asset.PropertyGraph.ClearReferencesToObjects(renderStage.Id.Yield());
-
-                    // Remove
-                    var itemIndex = new NodeIndex(index);
-                    renderStagesNode.Remove(renderStage, itemIndex);
-                }
-
-                UndoRedoService.SetName(transaction, "Delete render stage(s)");
+                // Remove
+                var itemIndex = new NodeIndex(index);
+                renderStagesNode.Remove(renderStage, itemIndex);
             }
+
+            UndoRedoService.SetName(transaction, "Delete render stage(s)");
         }
 
         private void AddNewCameraSlot()
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                var cameraSlot = new SceneCameraSlot();
-                cameraSlotsNode.Add(cameraSlot);
+            using var transaction = UndoRedoService.CreateTransaction();
+            var cameraSlot = new SceneCameraSlot();
+            cameraSlotsNode.Add(cameraSlot);
 
-                UndoRedoService.SetName(transaction, "Create new camera slot");
-            }
+            UndoRedoService.SetName(transaction, "Create new camera slot");
         }
 
         private void RemoveSelectedCameraSlots()
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            var toRemove = SelectedCameraSlots.Cast<GraphicsCompositorCameraSlotsViewModel>().Select(x => x.CameraSlot).ToList();
+            // Clear selection first, so we don't try to unselect items that don't exist anymore later.
+            SelectedCameraSlots.Clear();
+
+            foreach (var viewModel in toRemove)
             {
-                var toRemove = SelectedCameraSlots.Cast<GraphicsCompositorCameraSlotsViewModel>().Select(x => x.CameraSlot).ToList();
-                // Clear selection first, so we don't try to unselect items that don't exist anymore later.
-                SelectedCameraSlots.Clear();
+                // Find index
+                var index = Asset.Asset.Cameras.IndexOf(viewModel);
+                if (index < 0)
+                    continue;
 
-                foreach (var viewModel in toRemove)
-                {
-                    // Find index
-                    var index = Asset.Asset.Cameras.IndexOf(viewModel);
-                    if (index < 0)
-                        continue;
+                // Do not clear references to this object - camera slots in the scene asset should not change automatically!
 
-                    // Do not clear references to this object - camera slots in the scene asset should not change automatically!
-
-                    // Remove
-                    var itemIndex = new NodeIndex(index);
-                    cameraSlotsNode.Remove(viewModel, itemIndex);
-                }
-
-                UndoRedoService.SetName(transaction, "Delete camera slot(s)");
+                // Remove
+                var itemIndex = new NodeIndex(index);
+                cameraSlotsNode.Remove(viewModel, itemIndex);
             }
+
+            UndoRedoService.SetName(transaction, "Delete camera slot(s)");
         }
 
         private void AssembliesUpdated(object sender, AssemblyRegisteredEventArgs e)
@@ -381,37 +369,33 @@ namespace Stride.Assets.Presentation.AssetEditors.GraphicsCompositorEditor.ViewM
 
         private void AddNewRenderFeature(AbstractNodeType abstractNodeType)
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                var renderFeature = abstractNodeType.GenerateValue(null);
-                renderFeaturesNode.Add(renderFeature);
+            using var transaction = UndoRedoService.CreateTransaction();
+            var renderFeature = abstractNodeType.GenerateValue(null);
+            renderFeaturesNode.Add(renderFeature);
 
-                UndoRedoService.SetName(transaction, "Create new render feature");
-            }
+            UndoRedoService.SetName(transaction, "Create new render feature");
         }
 
         private void RemoveSelectedRenderFeatures()
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            var toRemove = SelectedRenderFeatures.Cast<RenderFeatureViewModel>().Select(x => x.RenderFeature).ToList();
+            // Clear selection first, so we don't try to unselect items that don't exist anymore later.
+            SelectedRenderFeatures.Clear();
+
+            foreach (var renderFeature in toRemove)
             {
-                var toRemove = SelectedRenderFeatures.Cast<RenderFeatureViewModel>().Select(x => x.RenderFeature).ToList();
-                // Clear selection first, so we don't try to unselect items that don't exist anymore later.
-                SelectedRenderFeatures.Clear();
+                // Find index
+                var index = Asset.Asset.RenderFeatures.IndexOf(renderFeature);
+                if (index < 0)
+                    continue;
 
-                foreach (var renderFeature in toRemove)
-                {
-                    // Find index
-                    var index = Asset.Asset.RenderFeatures.IndexOf(renderFeature);
-                    if (index < 0)
-                        continue;
-
-                    // Remove
-                    var itemIndex = new NodeIndex(index);
-                    renderFeaturesNode.Remove(renderFeature, itemIndex);
-                }
-
-                UndoRedoService.SetName(transaction, "Delete render feature(s)");
+                // Remove
+                var itemIndex = new NodeIndex(index);
+                renderFeaturesNode.Remove(renderFeature, itemIndex);
             }
+
+            UndoRedoService.SetName(transaction, "Delete render feature(s)");
         }
 
         private void SharedRenderersChanged(object sender, ItemChangeEventArgs e)

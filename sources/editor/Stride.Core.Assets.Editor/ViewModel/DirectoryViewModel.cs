@@ -144,16 +144,14 @@ namespace Stride.Core.Assets.Editor.ViewModel
                 return;
             }
 
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            string previousName = name;
+            if (SetValue(ref name, newName, nameof(Name), nameof(Path)))
             {
-                string previousName = name;
-                if (SetValue(ref name, newName, nameof(Name), nameof(Path)))
-                {
-                    IsEditing = false;
-                    UpdateAssetUrls();
-                }
-                UndoRedoService.SetName(transaction, $@"Rename folder ""{previousName}"" to ""{newName}""");
+                IsEditing = false;
+                UpdateAssetUrls();
             }
+            UndoRedoService.SetName(transaction, $@"Rename folder ""{previousName}"" to ""{newName}""");
         }
 
         protected override bool IsValidName(string value, out string error)

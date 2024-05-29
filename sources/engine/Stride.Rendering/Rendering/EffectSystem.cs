@@ -221,11 +221,9 @@ namespace Stride.Rendering
                             var pathUrl = storagePath + "/path";
                             if (FileProvider.FileExists(pathUrl))
                             {
-                                using (var pathStream = FileProvider.OpenStream(pathUrl, VirtualFileMode.Open, VirtualFileAccess.Read))
-                                using (var reader = new StreamReader(pathStream))
-                                {
-                                    filePath = reader.ReadToEnd();
-                                }
+                                using var pathStream = FileProvider.OpenStream(pathUrl, VirtualFileMode.Open, VirtualFileAccess.Read);
+                                using var reader = new StreamReader(pathStream);
+                                filePath = reader.ReadToEnd();
                             }                            
                         }
                         if (filePath != null)

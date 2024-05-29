@@ -674,11 +674,9 @@ namespace Stride.Core.Assets.Editor.ViewModel
             if (upgradedAssets.Count > 0)
             {
                 // This transaction is done on a zero-sized stack just to flag assets as dirty. It is made to be uncancellable.
-                using (var transaction = undoRedoService.CreateTransaction())
-                {
-                    upgradedAssets.ForEach(x => undoRedoService.PushOperation(new AssetsUpgradeOperation(x)));
-                    undoRedoService.SetName(transaction, $"Upgrade assets ({upgradedAssets.Count})");
-                }
+                using var transaction = undoRedoService.CreateTransaction();
+                upgradedAssets.ForEach(x => undoRedoService.PushOperation(new AssetsUpgradeOperation(x)));
+                undoRedoService.SetName(transaction, $"Upgrade assets ({upgradedAssets.Count})");
             }
 
             SourceTracker = new AssetSourceTrackerViewModel(ServiceProvider, session, this);
@@ -1371,35 +1369,33 @@ namespace Stride.Core.Assets.Editor.ViewModel
             var locations = selectedItems.ToList();
             foreach (var selectedItem in locations)
             {
-                using (var transaction = UndoRedoService.CreateTransaction())
+                using var transaction = UndoRedoService.CreateTransaction();
+                var selectedDirectory = selectedItem as DirectoryBaseViewModel;
+                var selectedPackage = GetContainerPackage(selectedItem);
+                if (selectedDirectory != null)
                 {
-                    var selectedDirectory = selectedItem as DirectoryBaseViewModel;
-                    var selectedPackage = GetContainerPackage(selectedItem);
-                    if (selectedDirectory != null)
+                    if (selectedDirectory.Package.IsEditable)
                     {
-                        if (selectedDirectory.Package.IsEditable)
-                        {
-                            createdDirectory = selectedDirectory.CreateSubDirectory(true);
-                        }
+                        createdDirectory = selectedDirectory.CreateSubDirectory(true);
                     }
-                    else if (selectedPackage != null)
+                }
+                else if (selectedPackage != null)
+                {
+                    if (selectedPackage.IsEditable)
                     {
-                        if (selectedPackage.IsEditable)
-                        {
-                            createdDirectory = selectedPackage.AssetMountPoint.CreateSubDirectory(true);
-                        }
+                        createdDirectory = selectedPackage.AssetMountPoint.CreateSubDirectory(true);
                     }
-                    else
-                    {
-                        invalidSelectedItem = true;
-                    }
+                }
+                else
+                {
+                    invalidSelectedItem = true;
+                }
 
-                    if (createdDirectory != null)
-                    {
-                        createdDirectories.Add(createdDirectory);
-                        var parentPath = !string.IsNullOrEmpty(createdDirectory.Parent.Path) ? createdDirectory.Parent.Path : createdDirectory.Parent.Name;
-                        UndoRedoService.SetName(transaction, $@"Create folder ""{createdDirectory.Name}"" in ""{parentPath}""");
-                    }
+                if (createdDirectory != null)
+                {
+                    createdDirectories.Add(createdDirectory);
+                    var parentPath = !string.IsNullOrEmpty(createdDirectory.Parent.Path) ? createdDirectory.Parent.Path : createdDirectory.Parent.Name;
+                    UndoRedoService.SetName(transaction, $@"Create folder ""{createdDirectory.Name}"" in ""{parentPath}""");
                 }
             }
 
@@ -1416,12 +1412,10 @@ namespace Stride.Core.Assets.Editor.ViewModel
                 var firstPackage = LocalPackages.FirstOrDefault();
                 if (firstPackage != null)
                 {
-                    using (var transaction = UndoRedoService.CreateTransaction())
-                    {
-                        createdDirectory = firstPackage.AssetMountPoint.CreateSubDirectory(true);
-                        createdDirectories.Add(createdDirectory);
-                        UndoRedoService.SetName(transaction, $"Create directory '{createdDirectory.Name}' in '{createdDirectory.Parent.Path}'");
-                    }
+                    using var transaction = UndoRedoService.CreateTransaction();
+                    createdDirectory = firstPackage.AssetMountPoint.CreateSubDirectory(true);
+                    createdDirectories.Add(createdDirectory);
+                    UndoRedoService.SetName(transaction, $"Create directory '{createdDirectory.Name}' in '{createdDirectory.Parent.Path}'");
                 }
             }
 
@@ -1795,15 +1789,13 @@ namespace Stride.Core.Assets.Editor.ViewModel
                 return;
 
             var currentValue = ActiveAssetView.SelectedAssets.All(x => x.Dependencies.IsRoot);
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            foreach (var selectedAsset in ActiveAssetView.SelectedAssets)
             {
-                foreach (var selectedAsset in ActiveAssetView.SelectedAssets)
-                {
-                    if (CurrentProject.IsInScope(selectedAsset))
-                        selectedAsset.Dependencies.IsRoot = !currentValue;
-                }
-                UndoRedoService.SetName(transaction, "Change root assets");
+                if (CurrentProject.IsInScope(selectedAsset))
+                    selectedAsset.Dependencies.IsRoot = !currentValue;
             }
+            UndoRedoService.SetName(transaction, "Change root assets");
         }
 
         /// <inheritdoc/>

@@ -142,10 +142,8 @@ namespace Stride.Core.Settings
             try
             {
                 var settingsFile = new SettingsFile(profile);
-                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    SettingsYamlSerializer.Default.Deserialize(stream, settingsFile);
-                }
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                SettingsYamlSerializer.Default.Deserialize(stream, settingsFile);
             }
             catch (Exception)
             {
@@ -186,10 +184,8 @@ namespace Stride.Core.Settings
             try
             {
                 var settingsFile = new SettingsFile(profile);
-                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    SettingsYamlSerializer.Default.Deserialize(stream, settingsFile);
-                }
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                SettingsYamlSerializer.Default.Deserialize(stream, settingsFile);
             }
             catch (Exception e)
             {

@@ -207,14 +207,12 @@ namespace Stride.Core.Assets
                 return true;
 
             // Otherwise, full file compare
-            using (var fs1 = file1.OpenRead())
-            using (var fs2 = file2.OpenRead())
+            using var fs1 = file1.OpenRead();
+            using var fs2 = file2.OpenRead();
+            for (int i = 0; i < file1.Length; i++)
             {
-                for (int i = 0; i < file1.Length; i++)
-                {
-                    if (fs1.ReadByte() != fs2.ReadByte())
-                        return false;
-                }
+                if (fs1.ReadByte() != fs2.ReadByte())
+                    return false;
             }
             return true;
         }

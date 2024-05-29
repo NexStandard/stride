@@ -399,10 +399,8 @@ namespace Stride.Graphics.Tests
                     using (var inStream = game.Content.OpenAsStream(filePath, StreamFlags.None))
                     using (var originalImage = Image.Load(inStream))
                     {
-                        using (var textureImage = Image.Load(tempStream))
-                        {
-                            TestImage.CompareImage(originalImage, textureImage, false, 0, fileName);
-                        }
+                        using var textureImage = Image.Load(tempStream);
+                        TestImage.CompareImage(originalImage, textureImage, false, 0, fileName);
                     }
                     tempStream.Dispose();
                     var time = clock.ElapsedMilliseconds;
@@ -488,8 +486,8 @@ namespace Stride.Graphics.Tests
 
                     foreach (var flag in flags)
                     {
-                        using (var texture = CreateDebugTexture(game.GraphicsDevice, data, width, height, mipmaps, arraySize, pixelFormat, flag, usage))
-                            CheckDebugTextureData(game.GraphicsContext, texture, width, height, mipmaps, arraySize, pixelFormat, flag, usage, DefaultColorComputer);
+                        using var texture = CreateDebugTexture(game.GraphicsDevice, data, width, height, mipmaps, arraySize, pixelFormat, flag, usage);
+                        CheckDebugTextureData(game.GraphicsContext, texture, width, height, mipmaps, arraySize, pixelFormat, flag, usage, DefaultColorComputer);
                     }
                 },
                 profile);
@@ -529,13 +527,11 @@ namespace Stride.Graphics.Tests
 
                             foreach (var flag in sourceFlags)
                             {
-                                using (var texture = CreateDebugTexture(game.GraphicsDevice, data, width, height, mipmaps, arraySize, pixelFormat, flag, usageSource))
-                                using (var copyTexture = destinationStaged ? texture.ToStaging(): texture.Clone())
-                                {
-                                    game.GraphicsContext.CommandList.Copy(texture, copyTexture);
+                                using var texture = CreateDebugTexture(game.GraphicsDevice, data, width, height, mipmaps, arraySize, pixelFormat, flag, usageSource);
+                                using var copyTexture = destinationStaged ? texture.ToStaging() : texture.Clone();
+                                game.GraphicsContext.CommandList.Copy(texture, copyTexture);
 
-                                    CheckDebugTextureData(game.GraphicsContext, copyTexture, width, height, mipmaps, arraySize, pixelFormat, flag, usageSource, computer);
-                                }
+                                CheckDebugTextureData(game.GraphicsContext, copyTexture, width, height, mipmaps, arraySize, pixelFormat, flag, usageSource, computer);
                             }
                         }
                     }

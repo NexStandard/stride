@@ -425,41 +425,39 @@ namespace Stride.Core.Assets.Editor.ViewModel
         /// <returns>The number of assets that have been successfully deleted.</returns>
         internal int DeleteAssets(IEnumerable<AssetViewModel> assetsToDelete, bool forceDelete = false)
         {
-            using (var transaction = Session.UndoRedoService.CreateTransaction())
+            using var transaction = Session.UndoRedoService.CreateTransaction();
+            var deletedAssets = new List<AssetViewModel>();
+            foreach (var asset in assetsToDelete.Where(x => forceDelete || x.CanDelete()))
             {
-                var deletedAssets = new List<AssetViewModel>();
-                foreach (var asset in assetsToDelete.Where(x => forceDelete || x.CanDelete()))
+                if (asset.Directory == null)
+                    throw new InvalidOperationException("The asset directory cannot be null before deleting an asset.");
+
+                if (!forceDelete && !asset.CanDelete())
+                    continue;
+
+                // This must be done before we clear the Directory property of the asset
+                AssetDependenciesViewModel.NotifyAssetChanged(asset.Session, asset);
+
+                var oldDirectory = asset.Directory;
+
+                // It is important to set IsDeleted before clearing the directory, so the parent project can be marked as dirty
+                asset.IsDeleted = true;
+                asset.Directory.RemoveAsset(asset);
+                asset.Directory = null;
+
+                // Update RootAssets, for both current package and packages referencing this one
+                // Note: Package to Asset references should be handled in a more generic way (same as Asset to Asset references)
+                // We check only local
+                foreach (var localPackage in Session.LocalPackages)
                 {
-                    if (asset.Directory == null)
-                        throw new InvalidOperationException("The asset directory cannot be null before deleting an asset.");
-
-                    if (!forceDelete && !asset.CanDelete())
-                        continue;
-
-                    // This must be done before we clear the Directory property of the asset
-                    AssetDependenciesViewModel.NotifyAssetChanged(asset.Session, asset);
-
-                    var oldDirectory = asset.Directory;
-
-                    // It is important to set IsDeleted before clearing the directory, so the parent project can be marked as dirty
-                    asset.IsDeleted = true;
-                    asset.Directory.RemoveAsset(asset);
-                    asset.Directory = null;
-
-                    // Update RootAssets, for both current package and packages referencing this one
-                    // Note: Package to Asset references should be handled in a more generic way (same as Asset to Asset references)
-                    // We check only local
-                    foreach (var localPackage in Session.LocalPackages)
-                    {
-                        localPackage.RootAssets.Remove(asset);
-                    }
-
-                    oldDirectory.Package.CheckConsistency();
-                    deletedAssets.Add(asset);
+                    localPackage.RootAssets.Remove(asset);
                 }
-                Session.UndoRedoService.SetName(transaction, deletedAssets.Count == 1 ? $"Delete asset '{deletedAssets[0]}'" : $"Delete {deletedAssets.Count} assets");
-                return deletedAssets.Count;
+
+                oldDirectory.Package.CheckConsistency();
+                deletedAssets.Add(asset);
             }
+            Session.UndoRedoService.SetName(transaction, deletedAssets.Count == 1 ? $"Delete asset '{deletedAssets[0]}'" : $"Delete {deletedAssets.Count} assets");
+            return deletedAssets.Count;
         }
 
         /// <inheritdoc />
@@ -890,35 +888,33 @@ namespace Stride.Core.Assets.Editor.ViewModel
                 return;
             }
 
-            using (var transaction = Session.UndoRedoService.CreateTransaction())
+            using var transaction = Session.UndoRedoService.CreateTransaction();
+            // Clear the selection at first to reduce view updates in the following actions
+            ClearSelection();
+            // Add an action item that will fix back the references in the referencers of the assets being cut, in case the
+            var assetsToFix = PackageViewModel.GetReferencers(dependencyManager, Session, assetList.Select(x => x.AssetItem));
+            var fixReferencesOperation = new FixAssetReferenceOperation(assetsToFix, true, false);
+            Session.UndoRedoService.PushOperation(fixReferencesOperation);
+            // Delete the assets
+            DeleteAssets(assetList);
+            if (directories != null)
             {
-                // Clear the selection at first to reduce view updates in the following actions
-                ClearSelection();
-                // Add an action item that will fix back the references in the referencers of the assets being cut, in case the
-                var assetsToFix = PackageViewModel.GetReferencers(dependencyManager, Session, assetList.Select(x => x.AssetItem));
-                var fixReferencesOperation = new FixAssetReferenceOperation(assetsToFix, true, false);
-                Session.UndoRedoService.PushOperation(fixReferencesOperation);
-                // Delete the assets
-                DeleteAssets(assetList);
-                if (directories != null)
+                // Delete the directories
+                foreach (var directory in directories)
                 {
-                    // Delete the directories
-                    foreach (var directory in directories)
+                    string error;
+                    // Last-chance check (note that we already checked that the directories are not read-only)
+                    if (!directory.CanDelete(out error))
                     {
-                        string error;
-                        // Last-chance check (note that we already checked that the directories are not read-only)
-                        if (!directory.CanDelete(out error))
-                        {
-                            error = string.Format(Tr._p("Message", "{0} can't be deleted. {1}{2}"), directory.Name, Environment.NewLine, error);
-                            await Dialogs.MessageBoxAsync(error, MessageBoxButton.OK, MessageBoxImage.Error);
-                            return;
-                        }
-                        directory.Delete();
+                        error = string.Format(Tr._p("Message", "{0} can't be deleted. {1}{2}"), directory.Name, Environment.NewLine, error);
+                        await Dialogs.MessageBoxAsync(error, MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
                     }
+                    directory.Delete();
                 }
-
-                Session.UndoRedoService.SetName(transaction, "Cut selection");
             }
+
+            Session.UndoRedoService.SetName(transaction, "Cut selection");
         }
 
         private async Task CopySelection(IReadOnlyCollection<DirectoryBaseViewModel> directories, IEnumerable<AssetViewModel> assetsToCopy)

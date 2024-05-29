@@ -23,47 +23,43 @@ namespace Stride.Samples.Tests
         [Fact]
         public void TestLaunch()
         {
-            using (var game = new GameTestingClient(Path, SampleTestsData.TestPlatform))
-            {
-                game.Wait(TimeSpan.FromMilliseconds(5000));
-            }
+            using var game = new GameTestingClient(Path, SampleTestsData.TestPlatform);
+            game.Wait(TimeSpan.FromMilliseconds(5000));
         }
 
         [Fact]
         public void TestInputs()
         {
-            using (var game = new GameTestingClient(Path, SampleTestsData.TestPlatform))
-            {
-                game.Wait(TimeSpan.FromMilliseconds(2000));
-                game.TakeScreenshot();
-                game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
+            using var game = new GameTestingClient(Path, SampleTestsData.TestPlatform);
+            game.Wait(TimeSpan.FromMilliseconds(2000));
+            game.TakeScreenshot();
+            game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
 
-                game.Wait(TimeSpan.FromMilliseconds(1000));
-                game.TakeScreenshot();
-                game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
+            game.Wait(TimeSpan.FromMilliseconds(1000));
+            game.TakeScreenshot();
+            game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
 
-                game.Wait(TimeSpan.FromMilliseconds(1000));
-                game.TakeScreenshot();
-                game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
+            game.Wait(TimeSpan.FromMilliseconds(1000));
+            game.TakeScreenshot();
+            game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
 
-                game.Wait(TimeSpan.FromMilliseconds(1000));
-                game.TakeScreenshot();
-                game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
+            game.Wait(TimeSpan.FromMilliseconds(1000));
+            game.TakeScreenshot();
+            game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
 
-                game.Wait(TimeSpan.FromMilliseconds(1000));
-                game.TakeScreenshot();
-                game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
+            game.Wait(TimeSpan.FromMilliseconds(1000));
+            game.TakeScreenshot();
+            game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
 
-                game.Wait(TimeSpan.FromMilliseconds(1000));
-                game.TakeScreenshot();
-                game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
+            game.Wait(TimeSpan.FromMilliseconds(1000));
+            game.TakeScreenshot();
+            game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
 
-                game.Wait(TimeSpan.FromMilliseconds(1000));
-                game.TakeScreenshot();
-                game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
+            game.Wait(TimeSpan.FromMilliseconds(1000));
+            game.TakeScreenshot();
+            game.Tap(new Vector2(0.95f, 0.5f), TimeSpan.FromMilliseconds(200)); // Transition to the next scene
 
-                game.Wait(TimeSpan.FromMilliseconds(500));
-            }
+            game.Wait(TimeSpan.FromMilliseconds(500));
         }
     }
 }

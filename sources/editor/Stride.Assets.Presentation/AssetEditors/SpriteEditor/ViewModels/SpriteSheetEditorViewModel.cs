@@ -389,16 +389,14 @@ namespace Stride.Assets.Presentation.AssetEditors.SpriteEditor.ViewModels
             {
                 imagesToMove.Sort((x, y) => x.Index.CompareTo(y.Index) * -offset);
 
-                using (var transaction = UndoRedoService.CreateTransaction())
+                using var transaction = UndoRedoService.CreateTransaction();
+                foreach (var selectedImage in imagesToMove)
                 {
-                    foreach (var selectedImage in imagesToMove)
-                    {
-                        var spriteInfo = selectedImage.GetSpriteInfo();
-                        RemoveImage(spriteInfo, selectedImage.Index);
-                        InsertImage(spriteInfo, selectedImage.Index + offset);
-                    }
-                    UndoRedoService.SetName(transaction, "Reorder images");
+                    var spriteInfo = selectedImage.GetSpriteInfo();
+                    RemoveImage(spriteInfo, selectedImage.Index);
+                    InsertImage(spriteInfo, selectedImage.Index + offset);
                 }
+                UndoRedoService.SetName(transaction, "Reorder images");
             }
             SelectedSprites.Clear();
             SelectedSprites.AddRange(toReselect.Select(FindViewModel));
@@ -472,14 +470,12 @@ namespace Stride.Assets.Presentation.AssetEditors.SpriteEditor.ViewModels
 
         private void UseWholeImage()
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            foreach (var sprite in SelectedSprites.Cast<SpriteInfoViewModel>())
             {
-                foreach (var sprite in SelectedSprites.Cast<SpriteInfoViewModel>())
-                {
-                    sprite.TextureRegion.UseWholeImage();
-                }
-                UndoRedoService.SetName(transaction, "Use whole sprite");
+                sprite.TextureRegion.UseWholeImage();
             }
+            UndoRedoService.SetName(transaction, "Use whole sprite");
         }
 
         private void DuplicateSelectedImages()
@@ -532,22 +528,20 @@ namespace Stride.Assets.Presentation.AssetEditors.SpriteEditor.ViewModels
                             var initialRect = (Rectangle)CurrentSprite.TextureRegion.Region;
                             spriteRegion = Rectangle.Union(initialRect, spriteRegion.Value);
                         }
-                        using (var transaction = UndoRedoService.CreateTransaction())
+                        using var transaction = UndoRedoService.CreateTransaction();
+                        CurrentSprite.TextureRegion.Region = new RectangleF
                         {
-                            CurrentSprite.TextureRegion.Region = new RectangleF
-                            {
-                                Left = spriteRegion.Value.Left,
-                                Top = spriteRegion.Value.Top,
-                                Width = spriteRegion.Value.Width,
-                                Height = spriteRegion.Value.Height
-                            };
-                            if (!isUnion)
-                            {
-                                // It's a new region, reset the sprite borders
-                                CurrentSprite.SpriteBorders.Borders = Vector4.Zero;
-                            }
-                            UndoRedoService.SetName(transaction, "Update selected region");
+                            Left = spriteRegion.Value.Left,
+                            Top = spriteRegion.Value.Top,
+                            Width = spriteRegion.Value.Width,
+                            Height = spriteRegion.Value.Height
+                        };
+                        if (!isUnion)
+                        {
+                            // It's a new region, reset the sprite borders
+                            CurrentSprite.SpriteBorders.Borders = Vector4.Zero;
                         }
+                        UndoRedoService.SetName(transaction, "Update selected region");
                     }
                     break;
 

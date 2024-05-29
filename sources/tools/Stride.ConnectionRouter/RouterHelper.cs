@@ -93,23 +93,21 @@ namespace Stride.ConnectionRouter
 
                 if (checkIfPortOpen)
                 {
-                    using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
+                    using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    // Try during 5 seconds (10 * 500 msec)
+                    for (int i = 0; i < 10; ++i)
                     {
-                        // Try during 5 seconds (10 * 500 msec)
-                        for (int i = 0; i < 10; ++i)
+                        try
                         {
-                            try
-                            {
-                                socket.Connect("localhost", RouterClient.DefaultPort);
-                            }
-                            catch (SocketException)
-                            {
-                                // Try again in 500 msec
-                                Thread.Sleep(500);
-                                continue;
-                            }
-                            break;
+                            socket.Connect("localhost", RouterClient.DefaultPort);
                         }
+                        catch (SocketException)
+                        {
+                            // Try again in 500 msec
+                            Thread.Sleep(500);
+                            continue;
+                        }
+                        break;
                     }
                 }
 

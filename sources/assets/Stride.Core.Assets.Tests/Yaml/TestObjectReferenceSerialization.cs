@@ -561,19 +561,17 @@ AbstractRefDictionary:
 
         private static string SerializeAsString(object instance, YamlAssetMetadata<Guid> objectReferences)
         {
-            using (var stream = new MemoryStream())
+            using var stream = new MemoryStream();
+            var metadata = new AttachedYamlAssetMetadata();
+            if (objectReferences != null)
             {
-                var metadata = new AttachedYamlAssetMetadata();
-                if (objectReferences != null)
-                {
-                    metadata.AttachMetadata(AssetObjectSerializerBackend.ObjectReferencesKey, objectReferences);
-                }
-
-                new YamlAssetSerializer().Save(stream, instance, metadata);
-                stream.Flush();
-                stream.Position = 0;
-                return new StreamReader(stream).ReadToEnd();
+                metadata.AttachMetadata(AssetObjectSerializerBackend.ObjectReferencesKey, objectReferences);
             }
+
+            new YamlAssetSerializer().Save(stream, instance, metadata);
+            stream.Flush();
+            stream.Position = 0;
+            return new StreamReader(stream).ReadToEnd();
         }
 
         private static object Deserialize(string yaml)

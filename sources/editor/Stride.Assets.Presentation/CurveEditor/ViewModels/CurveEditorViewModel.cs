@@ -130,13 +130,11 @@ namespace Stride.Assets.Presentation.CurveEditor.ViewModels
 
         private void AddPoint(WindowsPoint point)
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                var editableCurve = selectedCurve as IEditableCurveViewModel;
-                editableCurve?.AddPoint(point); 
+            using var transaction = UndoRedoService.CreateTransaction();
+            var editableCurve = selectedCurve as IEditableCurveViewModel;
+            editableCurve?.AddPoint(point);
 
-                UndoRedoService.SetName(transaction, "Add control point");
-            }
+            UndoRedoService.SetName(transaction, "Add control point");
         }
 
         private void ClearSelectedCurve()
@@ -145,11 +143,9 @@ namespace Stride.Assets.Presentation.CurveEditor.ViewModels
             if (editableCurve == null)
                 return;
 
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                DeletePoints(editableCurve.ControlPoints, editableCurve);
-                UndoRedoService.SetName(transaction, $"Clear curve '{selectedCurve.DisplayName}'");
-            }
+            using var transaction = UndoRedoService.CreateTransaction();
+            DeletePoints(editableCurve.ControlPoints, editableCurve);
+            UndoRedoService.SetName(transaction, $"Clear curve '{selectedCurve.DisplayName}'");
         }
 
         private void ClearPointSelection()
@@ -199,11 +195,9 @@ namespace Stride.Assets.Presentation.CurveEditor.ViewModels
             if (count == 0)
                 return;
 
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                DeletePoints(SelectedControlPoints.Cast<ControlPointViewModelBase>(), editableCurve);
-                UndoRedoService.SetName(transaction, $"Delete {SelectedControlPoints.Count} point{(count > 1 ? "s" : "")} from curve '{selectedCurve.DisplayName}'");
-            }
+            using var transaction = UndoRedoService.CreateTransaction();
+            DeletePoints(SelectedControlPoints.Cast<ControlPointViewModelBase>(), editableCurve);
+            UndoRedoService.SetName(transaction, $"Delete {SelectedControlPoints.Count} point{(count > 1 ? "s" : "")} from curve '{selectedCurve.DisplayName}'");
         }
 
         private static void DeletePoints([NotNull] IEnumerable<ControlPointViewModelBase> points, IEditableCurveViewModel editableCurve)

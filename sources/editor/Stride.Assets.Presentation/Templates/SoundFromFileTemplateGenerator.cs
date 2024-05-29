@@ -44,22 +44,20 @@ namespace Stride.Assets.Presentation.Templates
             {
                 if (assetItem.Asset is SoundAsset soundAsset)
                 {
-                    using (var media = new FFmpegMedia())
+                    using var media = new FFmpegMedia();
+                    media.Open(soundAsset.Source.ToWindowsPath());
+                    var audioStreams = media.Streams.OfType<AudioStream>().ToList();
+                    foreach (var audioTrack in audioStreams)
                     {
-                        media.Open(soundAsset.Source.ToWindowsPath());
-                        var audioStreams = media.Streams.OfType<AudioStream>().ToList();
-                        foreach (var audioTrack in audioStreams)
-                        {
-                            var assetCopy = AssetCloner.Clone(soundAsset);
-                            assetCopy.Index = audioTrack.Index;
-                            assetCopy.SampleRate = audioTrack.SampleRate;
+                        var assetCopy = AssetCloner.Clone(soundAsset);
+                        assetCopy.Index = audioTrack.Index;
+                        assetCopy.SampleRate = audioTrack.SampleRate;
 
-                            // If there's more than one streams, append the track index to the asset name
-                            var fileLocation = audioStreams.Count > 1
-                                ? (UFile)(assetItem.Location + " track " + audioTrack.Index)
-                                : assetItem.Location;
-                            importedAssets.Add(new AssetItem(fileLocation, assetCopy));
-                        }
+                        // If there's more than one streams, append the track index to the asset name
+                        var fileLocation = audioStreams.Count > 1
+                            ? (UFile)(assetItem.Location + " track " + audioTrack.Index)
+                            : assetItem.Location;
+                        importedAssets.Add(new AssetItem(fileLocation, assetCopy));
                     }
                 }
             }

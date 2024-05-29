@@ -51,10 +51,8 @@ namespace Stride.Assets.Presentation.AssetEditors.EntityHierarchyEditor.Game
                     var editorCameraPosition = Camera.Position;
 
                     // Capture cubemap
-                    using (var cubemap = CubemapSceneRenderer.GenerateCubemap(game, editorCameraPosition, 1024))
-                    {
-                        return cubemap.GetDataAsImage(game.GraphicsContext.CommandList);
-                    }
+                    using var cubemap = CubemapSceneRenderer.GenerateCubemap(game, editorCameraPosition, 1024);
+                    return cubemap.GetDataAsImage(game.GraphicsContext.CommandList);
                 }
                 finally
                 {

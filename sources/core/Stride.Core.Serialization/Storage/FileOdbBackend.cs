@@ -84,10 +84,8 @@ namespace Stride.Core.Storage
         public virtual int GetSize(ObjectId objectId)
         {
             var url = BuildUrl(vfsRootUrl, objectId);
-            using (var file = virtualFileProvider.OpenStream(url, VirtualFileMode.Open, VirtualFileAccess.Read))
-            {
-                return checked((int)file.Length);
-            }
+            using var file = virtualFileProvider.OpenStream(url, VirtualFileMode.Open, VirtualFileAccess.Read);
+            return checked((int)file.Length);
         }
 
         /// <inheritdoc/>

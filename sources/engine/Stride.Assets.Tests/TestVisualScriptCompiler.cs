@@ -183,28 +183,26 @@ namespace Stride.Assets.Tests
                 Class = "TestClass",
             });
 
-            using (var textWriter = new StringWriter())
+            using var textWriter = new StringWriter();
+            try
             {
-                try
-                {
-                    Console.SetOut(textWriter);
+                Console.SetOut(textWriter);
 
-                    // Create class
-                    var testInstance = CreateInstance(new[] { compilerResult.SyntaxTree });
-                    // Execute method
-                    testCode(testInstance);
+                // Create class
+                var testInstance = CreateInstance(new[] { compilerResult.SyntaxTree });
+                // Execute method
+                testCode(testInstance);
 
-                    // Check output
-                    textWriter.Flush();
-                    Assert.Equal(expectedOutput, textWriter.ToString());
-                }
-                finally
-                {
-                    // Restore Console.Out
-                    var standardOutput = new StreamWriter(Console.OpenStandardOutput());
-                    standardOutput.AutoFlush = true;
-                    Console.SetOut(standardOutput);
-                }
+                // Check output
+                textWriter.Flush();
+                Assert.Equal(expectedOutput, textWriter.ToString());
+            }
+            finally
+            {
+                // Restore Console.Out
+                var standardOutput = new StreamWriter(Console.OpenStandardOutput());
+                standardOutput.AutoFlush = true;
+                Console.SetOut(standardOutput);
             }
         }
 
@@ -219,30 +217,28 @@ namespace Stride.Assets.Tests
                 syntaxTrees,
                 dependentAssemblies,
                 new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-            using (var peStream = new MemoryStream())
-            using (var pdbStream = new MemoryStream())
+            using var peStream = new MemoryStream();
+            using var pdbStream = new MemoryStream();
+            var emitResult = compilation.Emit(peStream, pdbStream);
+
+            if (!emitResult.Success)
             {
-                var emitResult = compilation.Emit(peStream, pdbStream);
-
-                if (!emitResult.Success)
+                var sb = new StringBuilder();
+                sb.AppendLine("Compilation errors:");
+                foreach (var diagnostic in emitResult.Diagnostics.Where(x => x.Severity >= DiagnosticSeverity.Error))
                 {
-                    var sb = new StringBuilder();
-                    sb.AppendLine("Compilation errors:");
-                    foreach (var diagnostic in emitResult.Diagnostics.Where(x => x.Severity >= DiagnosticSeverity.Error))
-                    {
-                        sb.AppendLine(diagnostic.ToString());
-                    }
-
-                    throw new InvalidOperationException(sb.ToString());
+                    sb.AppendLine(diagnostic.ToString());
                 }
 
-                peStream.Position = 0;
-                pdbStream.Position = 0;
-
-                var assembly = Assembly.Load(peStream.ToArray(), pdbStream.ToArray());
-                var @class = assembly.GetType("TestClass");
-                return Activator.CreateInstance(@class);
+                throw new InvalidOperationException(sb.ToString());
             }
+
+            peStream.Position = 0;
+            pdbStream.Position = 0;
+
+            var assembly = Assembly.Load(peStream.ToArray(), pdbStream.ToArray());
+            var @class = assembly.GetType("TestClass");
+            return Activator.CreateInstance(@class);
         }
     }
 }

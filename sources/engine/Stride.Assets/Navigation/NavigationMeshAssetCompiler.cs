@@ -223,13 +223,11 @@ namespace Stride.Assets.Navigation
                 try
                 {
                     var objectDatabase = MicrothreadLocalDatabases.DatabaseFileProvider.ObjectDatabase;
-                    using (var stream = objectDatabase.OpenStream(objectId))
-                    {
-                        var reader = new BinarySerializationReader(stream);
-                        NavigationMesh result = new NavigationMesh();
-                        reader.Serialize(ref result, ArchiveMode.Deserialize);
-                        return result;
-                    }
+                    using var stream = objectDatabase.OpenStream(objectId);
+                    var reader = new BinarySerializationReader(stream);
+                    NavigationMesh result = new NavigationMesh();
+                    reader.Serialize(ref result, ArchiveMode.Deserialize);
+                    return result;
                 }
                 catch (Exception)
                 {
@@ -245,12 +243,10 @@ namespace Stride.Assets.Navigation
             private void SaveIntermediateData(ObjectId objectId, NavigationMesh build)
             {
                 var objectDatabase = MicrothreadLocalDatabases.DatabaseFileProvider.ObjectDatabase;
-                using (var stream = objectDatabase.OpenStream(objectId, VirtualFileMode.Create, VirtualFileAccess.Write))
-                {
-                    var writer = new BinarySerializationWriter(stream);
-                    writer.Serialize(ref build, ArchiveMode.Serialize);
-                    writer.Flush();
-                }
+                using var stream = objectDatabase.OpenStream(objectId, VirtualFileMode.Create, VirtualFileAccess.Write);
+                var writer = new BinarySerializationWriter(stream);
+                writer.Serialize(ref build, ArchiveMode.Serialize);
+                writer.Flush();
             }
 
             private void EnsureClonedSceneAndHash()

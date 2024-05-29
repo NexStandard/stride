@@ -28,18 +28,16 @@ namespace Stride.Core.Presentation.Tests.Dirtiables
         public void TestDoAndSave()
         {
             var stack = new TransactionStack(5);
-            using (var manager = new DirtiableManager(stack))
+            using var manager = new DirtiableManager(stack);
+            var dirtiable = new SimpleDirtiable();
+            var operation = new SimpleDirtyingOperation(dirtiable.Yield());
+            using (stack.CreateTransaction())
             {
-                var dirtiable = new SimpleDirtiable();
-                var operation = new SimpleDirtyingOperation(dirtiable.Yield());
-                using (stack.CreateTransaction())
-                {
-                    stack.PushOperation(operation);
-                }
-                Assert.True(dirtiable.IsDirty);
-                manager.CreateSnapshot();
-                Assert.False(dirtiable.IsDirty);
+                stack.PushOperation(operation);
             }
+            Assert.True(dirtiable.IsDirty);
+            manager.CreateSnapshot();
+            Assert.False(dirtiable.IsDirty);
         }
 
         [Fact]
@@ -83,26 +81,24 @@ namespace Stride.Core.Presentation.Tests.Dirtiables
         public void TestSaveUndoSaveRedo()
         {
             var stack = new TransactionStack(5);
-            using (var manager = new DirtiableManager(stack))
+            using var manager = new DirtiableManager(stack);
+            var dirtiable = new SimpleDirtiable();
+            var operation = new SimpleDirtyingOperation(dirtiable.Yield());
+            using (stack.CreateTransaction())
             {
-                var dirtiable = new SimpleDirtiable();
-                var operation = new SimpleDirtyingOperation(dirtiable.Yield());
-                using (stack.CreateTransaction())
-                {
-                    stack.PushOperation(operation);
-                }
-                Assert.True(dirtiable.IsDirty);
-                manager.CreateSnapshot();
-                Assert.False(dirtiable.IsDirty);
-                stack.Rollback();
-                Assert.True(dirtiable.IsDirty);
-                manager.CreateSnapshot();
-                Assert.False(dirtiable.IsDirty);
-                stack.Rollforward();
-                Assert.True(dirtiable.IsDirty);
-                manager.CreateSnapshot();
-                Assert.False(dirtiable.IsDirty);
+                stack.PushOperation(operation);
             }
+            Assert.True(dirtiable.IsDirty);
+            manager.CreateSnapshot();
+            Assert.False(dirtiable.IsDirty);
+            stack.Rollback();
+            Assert.True(dirtiable.IsDirty);
+            manager.CreateSnapshot();
+            Assert.False(dirtiable.IsDirty);
+            stack.Rollforward();
+            Assert.True(dirtiable.IsDirty);
+            manager.CreateSnapshot();
+            Assert.False(dirtiable.IsDirty);
         }
     }
 }

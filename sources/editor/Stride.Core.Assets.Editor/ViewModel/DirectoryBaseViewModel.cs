@@ -281,45 +281,43 @@ namespace Stride.Core.Assets.Editor.ViewModel
             DirectoryViewModel singleDirectoryMoved = null;
             AssetViewModel singleAssetMoved = null;
 
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            foreach (var child in children)
             {
-                foreach (var child in children)
+                var directory = child as DirectoryViewModel;
+                var asset = child as AssetViewModel;
+                if (directory != null)
                 {
-                    var directory = child as DirectoryViewModel;
-                    var asset = child as AssetViewModel;
-                    if (directory != null)
-                    {
-                        ++directoriesMoved;
-                        singleDirectoryMoved = directoriesMoved == 1 ? directory : null;
-                        var hierarchy = new List<DirectoryBaseViewModel>();
-                        directory.GetDirectoryHierarchy(hierarchy);
-                        assetsMoved += hierarchy.Select(x => x.Assets.Count).Sum();
-                        singleAssetMoved = assetsMoved == 1 ? hierarchy.SelectMany(x => x.Assets).FirstOrDefault() : null;
-                        directory.Parent = this;
-                    }
-                    if (asset != null)
-                    {
-                        ++assetsMoved;
-                        singleAssetMoved = assetsMoved == 1 ? asset : null;
-                        Package.MoveAsset(asset, this);
-                    }
+                    ++directoriesMoved;
+                    singleDirectoryMoved = directoriesMoved == 1 ? directory : null;
+                    var hierarchy = new List<DirectoryBaseViewModel>();
+                    directory.GetDirectoryHierarchy(hierarchy);
+                    assetsMoved += hierarchy.Select(x => x.Assets.Count).Sum();
+                    singleAssetMoved = assetsMoved == 1 ? hierarchy.SelectMany(x => x.Assets).FirstOrDefault() : null;
+                    directory.Parent = this;
                 }
-                string message = "";
-                if (singleDirectoryMoved != null)
-                    message = $"Move directory '{singleDirectoryMoved.Name}'";
-                else if (directoriesMoved > 1)
-                    message = $"Move {directoriesMoved} directories";
-
-                if (assetsMoved > 0)
+                if (asset != null)
                 {
-                    message += message.Length > 0 ? " and " : "Move ";
-                    if (singleAssetMoved != null)
-                        message += $"asset '{singleAssetMoved.Url}'";
-                    else
-                        message += $"{assetsMoved} assets";
+                    ++assetsMoved;
+                    singleAssetMoved = assetsMoved == 1 ? asset : null;
+                    Package.MoveAsset(asset, this);
                 }
-                UndoRedoService.SetName(transaction, message);
             }
+            string message = "";
+            if (singleDirectoryMoved != null)
+                message = $"Move directory '{singleDirectoryMoved.Name}'";
+            else if (directoriesMoved > 1)
+                message = $"Move {directoriesMoved} directories";
+
+            if (assetsMoved > 0)
+            {
+                message += message.Length > 0 ? " and " : "Move ";
+                if (singleAssetMoved != null)
+                    message += $"asset '{singleAssetMoved.Url}'";
+                else
+                    message += $"{assetsMoved} assets";
+            }
+            UndoRedoService.SetName(transaction, message);
         }
 
         private static int CompareDirectories(DirectoryViewModel x, DirectoryViewModel y)

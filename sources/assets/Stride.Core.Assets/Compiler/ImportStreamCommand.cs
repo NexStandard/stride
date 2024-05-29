@@ -48,13 +48,9 @@ namespace Stride.Core.Assets.Compiler
                 // store absolute path to source
                 // TODO: the "/path" is hardcoded, used in EffectSystem and ShaderSourceManager. Find a place to share this correctly.
                 var pathLocation = new UFile(Location.FullPath + "/path");
-                using (var outputStreamPath = MicrothreadLocalDatabases.DatabaseFileProvider.OpenStream(pathLocation, VirtualFileMode.Create, VirtualFileAccess.Write))
-                {
-                    using (var sw = new StreamWriter(outputStreamPath))
-                    {
-                        sw.Write(SourcePath.FullPath);
-                    }
-                }
+                using var outputStreamPath = MicrothreadLocalDatabases.DatabaseFileProvider.OpenStream(pathLocation, VirtualFileMode.Create, VirtualFileAccess.Write);
+                using var sw = new StreamWriter(outputStreamPath);
+                sw.Write(SourcePath.FullPath);
             }
 
             return Task.FromResult(ResultStatus.Successful);

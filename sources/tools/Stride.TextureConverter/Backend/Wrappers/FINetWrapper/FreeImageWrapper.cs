@@ -1496,11 +1496,9 @@ namespace FreeImageAPI
 			// Create a 'FreeImageIO' structure for calling 'LoadFromHandle'
 			// using the internal structure 'FreeImageStreamIO'.
 			FreeImageIO io = FreeImageStreamIO.io;
-			using (fi_handle handle = new fi_handle(stream))
-			{
-				return LoadFromHandle(format, ref io, handle, flags);
-			}
-		}
+            using fi_handle handle = new fi_handle(stream);
+            return LoadFromHandle(format, ref io, handle, flags);
+        }
 
 		/// <summary>
 		/// Saves a previously loaded FreeImage bitmap to a stream.
@@ -1699,11 +1697,9 @@ namespace FreeImageAPI
 				// Create a 'FreeImageIO' structure for calling 'SaveToHandle'
 				FreeImageIO io = FreeImageStreamIO.io;
 
-				using (fi_handle handle = new fi_handle(stream))
-				{
-					result = SaveToHandle(format, dibToSave, ref io, handle, flags);
-				}
-			}
+                using fi_handle handle = new fi_handle(stream);
+                result = SaveToHandle(format, dibToSave, ref io, handle, flags);
+            }
 			finally
 			{
 				// Always unload a temporary created bitmap.
@@ -2257,11 +2253,9 @@ namespace FreeImageAPI
 			stream = (stream.CanSeek) ? stream : new StreamWrapper(stream, true);
 			// Create a 'FreeImageIO' structure for the stream
 			FreeImageIO io = FreeImageStreamIO.io;
-			using (fi_handle handle = new fi_handle(stream))
-			{
-				return GetFileTypeFromHandle(ref io, handle, 0);
-			}
-		}
+            using fi_handle handle = new fi_handle(stream);
+            return GetFileTypeFromHandle(ref io, handle, 0);
+        }
 
 		#endregion
 

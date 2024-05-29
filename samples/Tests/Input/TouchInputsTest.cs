@@ -23,25 +23,21 @@ namespace Stride.Samples.Tests
         [Fact]
         public void TestLaunch()
         {
-            using (var game = new GameTestingClient(Path, SampleTestsData.TestPlatform))
-            {
-                game.Wait(TimeSpan.FromMilliseconds(2000));
-            }
+            using var game = new GameTestingClient(Path, SampleTestsData.TestPlatform);
+            game.Wait(TimeSpan.FromMilliseconds(2000));
         }
 
         [Fact]
         public void TestInputs()
         {
-            using (var game = new GameTestingClient(Path, SampleTestsData.TestPlatform))
-            {
-                game.Wait(TimeSpan.FromMilliseconds(2000));
+            using var game = new GameTestingClient(Path, SampleTestsData.TestPlatform);
+            game.Wait(TimeSpan.FromMilliseconds(2000));
 
-                game.Drag(new Vector2(0.7f, 0.7f), new Vector2(0.1f, 0.1f), TimeSpan.FromMilliseconds(200),
-                    TimeSpan.FromMilliseconds(500));
-                game.TakeScreenshot();
+            game.Drag(new Vector2(0.7f, 0.7f), new Vector2(0.1f, 0.1f), TimeSpan.FromMilliseconds(200),
+                TimeSpan.FromMilliseconds(500));
+            game.TakeScreenshot();
 
-                game.Wait(TimeSpan.FromMilliseconds(500));
-            }
+            game.Wait(TimeSpan.FromMilliseconds(500));
         }
     }
 }

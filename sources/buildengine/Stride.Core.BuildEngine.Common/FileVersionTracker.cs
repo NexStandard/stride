@@ -137,12 +137,10 @@ namespace Stride.Core.BuildEngine
                     // TODO: we might want to allow retries, timeout, etc. since file processed here are files currently being edited by user
                     try
                     {
-                        using (var fileStream = File.OpenRead(filePath))
-                        using (var stream = new DigestStream(Stream.Null))
-                        {
-                            fileStream.CopyTo(stream);
-                            hash = stream.CurrentHash;
-                        }
+                        using var fileStream = File.OpenRead(filePath);
+                        using var stream = new DigestStream(Stream.Null);
+                        fileStream.CopyTo(stream);
+                        hash = stream.CurrentHash;
                     }
                     catch (Exception ex)
                     {

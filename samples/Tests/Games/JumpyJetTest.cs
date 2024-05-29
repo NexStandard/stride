@@ -23,25 +23,21 @@ namespace Stride.Samples.Tests
         [Fact]
         public void TestLaunch()
         {
-            using (var game = new GameTestingClient(Path, SampleTestsData.TestPlatform))
-            {
-                game.Wait(TimeSpan.FromMilliseconds(2000));
-            }
+            using var game = new GameTestingClient(Path, SampleTestsData.TestPlatform);
+            game.Wait(TimeSpan.FromMilliseconds(2000));
         }
 
         [Fact]
         public void TestInputs()
         {
-            using (var game = new GameTestingClient(Path, SampleTestsData.TestPlatform))
-            {
-                game.Wait(TimeSpan.FromMilliseconds(2000));
-                game.Tap(new Vector2(0.5f, 0.7f), TimeSpan.FromMilliseconds(500));
-                game.Wait(TimeSpan.FromMilliseconds(500));
-                game.KeyPress(Keys.Space, TimeSpan.FromMilliseconds(500));
-                game.Wait(TimeSpan.FromMilliseconds(500));
-                game.TakeScreenshot();
-                game.Wait(TimeSpan.FromMilliseconds(500));
-            }
+            using var game = new GameTestingClient(Path, SampleTestsData.TestPlatform);
+            game.Wait(TimeSpan.FromMilliseconds(2000));
+            game.Tap(new Vector2(0.5f, 0.7f), TimeSpan.FromMilliseconds(500));
+            game.Wait(TimeSpan.FromMilliseconds(500));
+            game.KeyPress(Keys.Space, TimeSpan.FromMilliseconds(500));
+            game.Wait(TimeSpan.FromMilliseconds(500));
+            game.TakeScreenshot();
+            game.Wait(TimeSpan.FromMilliseconds(500));
         }
     }
 }

@@ -117,23 +117,21 @@ namespace Stride.Games.Testing
 
         private void SaveTexture(Texture texture, string filename)
         {
-            using (var image = texture.GetDataAsImage(Game.GraphicsContext.CommandList))
-            {
-                //Send to server and store to disk
-                var imageData = new TestResultImage { Frame = "0", Image = image, TestName = "" };
-                var payload = new ScreenShotPayload { FileName = filename };
-                var resultFileStream = new MemoryStream();
-                var writer = new BinaryWriter(resultFileStream);
-                imageData.Write(writer);
+            using var image = texture.GetDataAsImage(Game.GraphicsContext.CommandList);
+            //Send to server and store to disk
+            var imageData = new TestResultImage { Frame = "0", Image = image, TestName = "" };
+            var payload = new ScreenShotPayload { FileName = filename };
+            var resultFileStream = new MemoryStream();
+            var writer = new BinaryWriter(resultFileStream);
+            imageData.Write(writer);
 
-                Task.Run(() =>
-                {
-                    payload.Data = resultFileStream.ToArray();
-                    payload.Size = payload.Data.Length;
-                    socketMessageLayer.Send(payload).Wait();
-                    resultFileStream.Dispose();
-                });
-            }
+            Task.Run(() =>
+            {
+                payload.Data = resultFileStream.ToArray();
+                payload.Size = payload.Data.Length;
+                socketMessageLayer.Send(payload).Wait();
+                resultFileStream.Dispose();
+            });
         }
 
 #if STRIDE_PLATFORM_IOS

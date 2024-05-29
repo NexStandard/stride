@@ -745,15 +745,13 @@ namespace Stride.TextureConverter.Tests
 
             foreach (var image in images)
             {
-                using (var texTool = new TextureTool())
-                using (var texImage = texTool.Load(Module.PathToInputImages + image))
-                {
-                    var foundColor = texTool.PickColor(texImage, pixelCoordinate1);
-                    Assert.Equal(theoreticalColor1, foundColor);
+                using var texTool = new TextureTool();
+                using var texImage = texTool.Load(Module.PathToInputImages + image);
+                var foundColor = texTool.PickColor(texImage, pixelCoordinate1);
+                Assert.Equal(theoreticalColor1, foundColor);
 
-                    foundColor = texTool.PickColor(texImage, pixelCoordinate2);
-                    Assert.Equal(theoreticalColor2, foundColor);
-                }
+                foundColor = texTool.PickColor(texImage, pixelCoordinate2);
+                Assert.Equal(theoreticalColor2, foundColor);
             }
         }
 
@@ -815,14 +813,12 @@ namespace Stride.TextureConverter.Tests
 
             foreach (var image in images)
             {
-                using (var texTool = new TextureTool())
-                using (var texImage = texTool.Load(Module.PathToInputImages + image))
+                using var texTool = new TextureTool();
+                using var texImage = texTool.Load(Module.PathToInputImages + image);
+                foreach (var entry in testEntries)
                 {
-                    foreach (var entry in testEntries)
-                    {
-                        var result = texTool.GetAlphaLevels(texImage, entry.Region, entry.TransparencyColor);
-                        Assert.Equal(entry.ExpectedResult, result);
-                    }
+                    var result = texTool.GetAlphaLevels(texImage, entry.Region, entry.TransparencyColor);
+                    Assert.Equal(entry.ExpectedResult, result);
                 }
             }
         }

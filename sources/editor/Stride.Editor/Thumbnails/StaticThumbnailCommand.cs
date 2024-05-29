@@ -56,15 +56,13 @@ namespace Stride.Editor.Thumbnails
                 texTool.Resize(texImage, thumbnailSize.X, thumbnailSize.Y, Filter.Rescaling.Lanczos3);
 
                 // Save
-                using (var outputImageStream = MicrothreadLocalDatabases.DatabaseFileProvider.OpenStream(Url, VirtualFileMode.Create, VirtualFileAccess.Write))
-                using (var outputImage = texTool.ConvertToStrideImage(texImage))
-                {
-                    ThumbnailBuildHelper.ApplyThumbnailStatus(outputImage, DependencyBuildStatus);
+                using var outputImageStream = MicrothreadLocalDatabases.DatabaseFileProvider.OpenStream(Url, VirtualFileMode.Create, VirtualFileAccess.Write);
+                using var outputImage = texTool.ConvertToStrideImage(texImage);
+                ThumbnailBuildHelper.ApplyThumbnailStatus(outputImage, DependencyBuildStatus);
 
-                    outputImage.Save(outputImageStream, ImageFileType.Png);
+                outputImage.Save(outputImageStream, ImageFileType.Png);
 
-                    commandContext.Logger.Verbose($"Thumbnail creation successful [{Url}] to ({outputImage.Description.Width}x{outputImage.Description.Height},{outputImage.Description.Format})");
-                }
+                commandContext.Logger.Verbose($"Thumbnail creation successful [{Url}] to ({outputImage.Description.Width}x{outputImage.Description.Height},{outputImage.Description.Format})");
             }
 
             return Task.FromResult(ResultStatus.Successful);

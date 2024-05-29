@@ -42,26 +42,22 @@ ObjectList:
 
         private static string Serialize(object instance)
         {
-            using (var stream = new MemoryStream())
-            {
-                AssetYamlSerializer.Default.Serialize(stream, instance);
-                stream.Flush();
-                stream.Position = 0;
-                return new StreamReader(stream).ReadToEnd();
-            }
+            using var stream = new MemoryStream();
+            AssetYamlSerializer.Default.Serialize(stream, instance);
+            stream.Flush();
+            stream.Position = 0;
+            return new StreamReader(stream).ReadToEnd();
         }
 
         private static T Deserialize<T>(string data)
         {
-            using (var stream = new MemoryStream())
-            {
-                var streamWriter = new StreamWriter(stream);
-                streamWriter.Write(data);
-                streamWriter.Flush();
-                stream.Position = 0;
+            using var stream = new MemoryStream();
+            var streamWriter = new StreamWriter(stream);
+            streamWriter.Write(data);
+            streamWriter.Flush();
+            stream.Position = 0;
 
-                return (T)AssetYamlSerializer.Default.Deserialize(stream, typeof(T));
-            }
+            return (T)AssetYamlSerializer.Default.Deserialize(stream, typeof(T));
         }
 
         [Fact]

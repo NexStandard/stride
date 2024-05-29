@@ -45,23 +45,21 @@ namespace Stride.Core.BuildEngine
 
             try
             {
-                using (var localTracker = new FileVersionStorage(fileStreamExclusive) { UseTransaction = true, AutoLoadNewValues = false })
+                using var localTracker = new FileVersionStorage(fileStreamExclusive) { UseTransaction = true, AutoLoadNewValues = false };
+                localTracker.LoadNewValues();
+                var latestVersion = new Dictionary<string, KeyValuePair<FileVersionKey, ObjectId>>(StringComparer.OrdinalIgnoreCase);
+                foreach (var keyValue in localTracker.GetValues())
                 {
-                    localTracker.LoadNewValues();
-                    var latestVersion = new Dictionary<string, KeyValuePair<FileVersionKey, ObjectId>>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var keyValue in localTracker.GetValues())
+                    var filePath = keyValue.Key.Path;
+                    KeyValuePair<FileVersionKey, ObjectId> previousKeyValue;
+                    if (!latestVersion.TryGetValue(filePath, out previousKeyValue) || keyValue.Key.LastModifiedDate > previousKeyValue.Key.LastModifiedDate)
                     {
-                        var filePath = keyValue.Key.Path;
-                        KeyValuePair<FileVersionKey, ObjectId> previousKeyValue;
-                        if (!latestVersion.TryGetValue(filePath, out previousKeyValue) || keyValue.Key.LastModifiedDate > previousKeyValue.Key.LastModifiedDate)
-                        {
-                            latestVersion[filePath] = keyValue;
-                        }
+                        latestVersion[filePath] = keyValue;
                     }
-                    localTracker.Reset();
-                    localTracker.AddValues(latestVersion.Values);
-                    localTracker.Save();
                 }
+                localTracker.Reset();
+                localTracker.AddValues(latestVersion.Values);
+                localTracker.Save();
             }
             catch (Exception)
             {

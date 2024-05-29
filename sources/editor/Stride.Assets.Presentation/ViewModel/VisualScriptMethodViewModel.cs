@@ -240,79 +240,77 @@ namespace Stride.Assets.Presentation.ViewModel
             }
 
             var actionService = ServiceProvider.Get<IUndoRedoService>();
-            using (var transaction = actionService.CreateTransaction())
+            using var transaction = actionService.CreateTransaction();
+            // Update slot list
+            var blockNode = visualScript.Session.AssetNodeContainer.GetOrCreateNode(block);
+            var blockSlots = blockNode[nameof(Block.Slots)].Target;
+
+            // Remove all links used by previous slots
+            // Note: we completetly remove them before updating, since we regenerates new VisualScriptSlotViewModel, so we need updated VisualScriptLinkViewModel
+            var linksToAdd = new List<Link>();
+            foreach (var link in method.Links.Values.ToArray())
             {
-                // Update slot list
-                var blockNode = visualScript.Session.AssetNodeContainer.GetOrCreateNode(block);
-                var blockSlots = blockNode[nameof(Block.Slots)].Target;
+                Slot newSlot;
+                var linkRemoved = false;
 
-                // Remove all links used by previous slots
-                // Note: we completetly remove them before updating, since we regenerates new VisualScriptSlotViewModel, so we need updated VisualScriptLinkViewModel
-                var linksToAdd = new List<Link>();
-                foreach (var link in method.Links.Values.ToArray())
+                // Source
+                if (slotMapping.TryGetValue(link.Source, out newSlot))
                 {
-                    Slot newSlot;
-                    var linkRemoved = false;
+                    RemoveLink(link);
+                    linkRemoved = true;
 
-                    // Source
-                    if (slotMapping.TryGetValue(link.Source, out newSlot))
+                    // If slot doesn't exist anymore, we're done
+                    if (newSlot == null)
                     {
-                        RemoveLink(link);
-                        linkRemoved = true;
-
-                        // If slot doesn't exist anymore, we're done
-                        if (newSlot == null)
-                        {
-                            continue;
-                        }
-
-                        // Otherwise, update
-                        link.Source = newSlot;
+                        continue;
                     }
 
-                    // Target
-                    if (slotMapping.TryGetValue(link.Target, out newSlot))
+                    // Otherwise, update
+                    link.Source = newSlot;
+                }
+
+                // Target
+                if (slotMapping.TryGetValue(link.Target, out newSlot))
+                {
+                    RemoveLink(link);
+                    linkRemoved = true;
+
+                    // If slot doesn't exist anymore, we're done
+                    if (newSlot == null)
                     {
-                        RemoveLink(link);
-                        linkRemoved = true;
-
-                        // If slot doesn't exist anymore, we're done
-                        if (newSlot == null)
-                        {
-                            continue;
-                        }
-
-                        // Otherwise, update
-                        link.Target = newSlot;
+                        continue;
                     }
 
-                    if (linkRemoved)
-                    {
-                        // Readd link later
-                        linksToAdd.Add(link);
-                    }
+                    // Otherwise, update
+                    link.Target = newSlot;
                 }
 
-                // Remove all slots
-                // TODO: we could use diff to minimize changes, but probably not worth the effort
-                // Note that we can't simply overwrite slots, since the Slot.Owner would become invalid if added before it is removed at another index
-                for (int i = block.Slots.Count - 1; i >= 0; --i)
-                    blockSlots.Remove(block.Slots[i], new NodeIndex(i));
-
-                // Add new slots (and try to reduce changes)
-                foreach (var slot in newSlots)
+                if (linkRemoved)
                 {
-                    blockSlots.Add(slot);
+                    // Readd link later
+                    linksToAdd.Add(link);
                 }
-
-                // Readd updated links
-                foreach (var link in linksToAdd)
-                {
-                    AddLink(link);
-                }
-
-                actionService.SetName(transaction, "Updated slots");
             }
+
+            // Remove all slots
+            // TODO: we could use diff to minimize changes, but probably not worth the effort
+            // Note that we can't simply overwrite slots, since the Slot.Owner would become invalid if added before it is removed at another index
+            for (int i = block.Slots.Count - 1; i >= 0; --i)
+                blockSlots.Remove(block.Slots[i], new NodeIndex(i));
+
+            // Add new slots (and try to reduce changes)
+            foreach (var slot in newSlots)
+            {
+                blockSlots.Add(slot);
+            }
+
+            // Readd updated links
+            foreach (var link in linksToAdd)
+            {
+                AddLink(link);
+            }
+
+            actionService.SetName(transaction, "Updated slots");
         }
     }
 }

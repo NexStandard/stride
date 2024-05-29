@@ -67,23 +67,19 @@ namespace Stride.Core.Extensions
             if (enumerable1 == null) throw new ArgumentNullException(nameof(enumerable1));
             if (enumerable2 == null) throw new ArgumentNullException(nameof(enumerable2));
 
-            using (var enumerator1 = enumerable1.GetEnumerator())
+            using var enumerator1 = enumerable1.GetEnumerator();
+            using var enumerator2 = enumerable2.GetEnumerator();
+            var enumMoved = true;
+            while (enumMoved)
             {
-                using (var enumerator2 = enumerable2.GetEnumerator())
-                {
-                    var enumMoved = true;
-                    while (enumMoved)
-                    {
-                        enumMoved = enumerator1.MoveNext();
-                        var enum2Moved = enumerator2.MoveNext();
-                        if (enumMoved != enum2Moved)
-                            throw new InvalidOperationException("Enumerables do not have the same number of items.");
+                enumMoved = enumerator1.MoveNext();
+                var enum2Moved = enumerator2.MoveNext();
+                if (enumMoved != enum2Moved)
+                    throw new InvalidOperationException("Enumerables do not have the same number of items.");
 
-                        if (enumMoved)
-                        {
-                            yield return Tuple.Create(enumerator1.Current, enumerator2.Current);
-                        }
-                    }
+                if (enumMoved)
+                {
+                    yield return Tuple.Create(enumerator1.Current, enumerator2.Current);
                 }
             }
         }
@@ -192,27 +188,25 @@ namespace Stride.Core.Extensions
             if (comparer == null)
                 comparer = EqualityComparer<T>.Default;
 
-            using (var e1 = a1.GetEnumerator())
-            using (var e2 = a2.GetEnumerator())
+            using var e1 = a1.GetEnumerator();
+            using var e2 = a2.GetEnumerator();
+            while (true)
             {
-                while (true)
-                {
-                    var move1 = e1.MoveNext();
-                    var move2 = e2.MoveNext();
+                var move1 = e1.MoveNext();
+                var move2 = e2.MoveNext();
 
-                    // End of enumeration, success!
-                    if (!move1 && !move2)
-                        break;
+                // End of enumeration, success!
+                if (!move1 && !move2)
+                    break;
 
-                    // One of the IEnumerable is shorter than the other?
-                    if (move1 ^ move2)
-                        return false;
+                // One of the IEnumerable is shorter than the other?
+                if (move1 ^ move2)
+                    return false;
 
-                    if (!comparer.Equals(e1.Current, e2.Current))
-                        return false;
-                }
-                return true;
+                if (!comparer.Equals(e1.Current, e2.Current))
+                    return false;
             }
+            return true;
         }
 
         [Pure]

@@ -17,13 +17,11 @@ namespace Stride.PrivacyPolicy
         static PrivacyPolicyHelper()
         {
             var localMachine32 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Registry32);
-            using (var subkey = localMachine32.OpenSubKey(@"SOFTWARE\Stride\Agreements\"))
+            using var subkey = localMachine32.OpenSubKey(@"SOFTWARE\Stride\Agreements\");
+            if (subkey != null)
             {
-                if (subkey != null)
-                {
-                    var value = (string)subkey.GetValue(Stride40Name);
-                    Stride40Accepted = value != null && value.ToLowerInvariant() == "true";
-                }
+                var value = (string)subkey.GetValue(Stride40Name);
+                Stride40Accepted = value != null && value.ToLowerInvariant() == "true";
             }
         }
 
@@ -69,15 +67,13 @@ namespace Stride.PrivacyPolicy
             try
             {
                 var localMachine32 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Registry32);
-                using (var subkey = localMachine32.CreateSubKey(@"SOFTWARE\Stride\Agreements\"))
-                {
-                    if (subkey == null)
-                        return false;
+                using var subkey = localMachine32.CreateSubKey(@"SOFTWARE\Stride\Agreements\");
+                if (subkey == null)
+                    return false;
 
-                    subkey.SetValue(Stride40Name, "True");
-                    Stride40Accepted = true;
-                    return true;
-                }
+                subkey.SetValue(Stride40Name, "True");
+                Stride40Accepted = true;
+                return true;
             }
             catch (Exception)
             {
@@ -90,17 +86,15 @@ namespace Stride.PrivacyPolicy
             try
             {
                 var localMachine32 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Registry32);
-                using (var subkey = localMachine32.CreateSubKey(@"SOFTWARE\Stride\Agreements\"))
-                {
-                    if (subkey == null)
-                        return false;
+                using var subkey = localMachine32.CreateSubKey(@"SOFTWARE\Stride\Agreements\");
+                if (subkey == null)
+                    return false;
 
-                    foreach (var valueName in subkey.GetValueNames())
-                    {
-                        subkey.DeleteValue(valueName);
-                    }
-                    return true;
+                foreach (var valueName in subkey.GetValueNames())
+                {
+                    subkey.DeleteValue(valueName);
                 }
+                return true;
             }
             catch (Exception)
             {

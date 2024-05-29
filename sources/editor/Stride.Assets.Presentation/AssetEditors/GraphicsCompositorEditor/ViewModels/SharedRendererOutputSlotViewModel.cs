@@ -61,28 +61,24 @@ namespace Stride.Assets.Presentation.AssetEditors.GraphicsCompositorEditor.ViewM
 
         public override void LinkTo(IGraphicsCompositorSlotViewModel target)
         {
-            using (var transaction = ServiceProvider.Get<IUndoRedoService>().CreateTransaction())
+            using var transaction = ServiceProvider.Get<IUndoRedoService>().CreateTransaction();
+            var sharedRenderer = target as SharedRendererInputSlotViewModel;
+            if (sharedRenderer != null)
             {
-                var sharedRenderer = target as SharedRendererInputSlotViewModel;
-                if (sharedRenderer != null)
+                if (Accessor.AcceptValue(sharedRenderer.GetSharedRenderer()))
                 {
-                    if (Accessor.AcceptValue(sharedRenderer.GetSharedRenderer()))
-                    {
-                        var newValue = sharedRenderer.GetSharedRenderer();
-                        Accessor.UpdateValue(newValue);
-                    }
+                    var newValue = sharedRenderer.GetSharedRenderer();
+                    Accessor.UpdateValue(newValue);
                 }
-                ServiceProvider.Get<IUndoRedoService>().SetName(transaction, $"Connect {Name} to {target.Name}");
             }
+            ServiceProvider.Get<IUndoRedoService>().SetName(transaction, $"Connect {Name} to {target.Name}");
         }
 
         public override void ClearLink()
         {
-            using (var transaction = ServiceProvider.Get<IUndoRedoService>().CreateTransaction())
-            {
-                Accessor.UpdateValue(null);
-                ServiceProvider.Get<IUndoRedoService>().SetName(transaction, "Clear link");
-            }
+            using var transaction = ServiceProvider.Get<IUndoRedoService>().CreateTransaction();
+            Accessor.UpdateValue(null);
+            ServiceProvider.Get<IUndoRedoService>().SetName(transaction, "Clear link");
         }
 
         public override void UpdateLink()

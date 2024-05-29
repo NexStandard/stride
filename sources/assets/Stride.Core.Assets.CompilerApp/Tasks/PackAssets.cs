@@ -120,57 +120,53 @@ namespace Stride.Core.Assets.CompilerApp.Tasks
 
                         var parsingEvents = new List<ParsingEvent>();
 
-                        using (var assetStream = File.OpenRead(asset.FilePath))
-                        using (var streamReader = new StreamReader(assetStream))
-                        {
-                            var yamlEventReader = new EventReader(new Parser(streamReader));
-                            yamlEventReader.ReadCurrent(parsingEvents);
+                        using var assetStream = File.OpenRead(asset.FilePath);
+                        using var streamReader = new StreamReader(assetStream);
+                        var yamlEventReader = new EventReader(new Parser(streamReader));
+                        yamlEventReader.ReadCurrent(parsingEvents);
 
-                            var hasChanges = false;
+                        var hasChanges = false;
+                        foreach (var parsingEvent in parsingEvents)
+                        {
+                            if (parsingEvent is Scalar scalar)
+                            {
+                                if (scalar.Tag == "!file")
+                                {
+                                    // Transform to absolute path
+                                    var sourceResourcePath = UPath.Combine(asset.FilePath.GetFullDirectory(), (UFile)scalar.Value);
+                                    // Check if file was copied in resource
+                                    if (!resourcesSourceToTarget.TryGetValue(sourceResourcePath, out var targetResourcePath))
+                                    {
+                                        // This file was not stored in resource, copy it manually
+                                        targetResourcePath = UPath.Combine(resourceOutputPath, (UFile)sourceResourcePath.GetFileName());
+                                        TryCopyResource(sourceResourcePath, targetResourcePath);
+                                    }
+                                    var newValue = targetResourcePath.MakeRelative(outputFile.GetFullDirectory());
+                                    if (scalar.Value != newValue)
+                                    {
+                                        hasChanges = true;
+                                        scalar.Value = newValue;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!hasChanges)
+                        {
+                            // We do this because pure text files could be parsed as YAML events even though they are not
+                            File.Copy(asset.FilePath, outputFile, true);
+                        }
+                        else
+                        {
+                            using var output = File.CreateText(outputFile);
+                            var emitter = new Emitter(output, AssetYamlSerializer.Default.GetSerializerSettings().PreferredIndent);
                             foreach (var parsingEvent in parsingEvents)
                             {
-                                if (parsingEvent is Scalar scalar)
-                                {
-                                    if (scalar.Tag == "!file")
-                                    {
-                                        // Transform to absolute path
-                                        var sourceResourcePath = UPath.Combine(asset.FilePath.GetFullDirectory(), (UFile)scalar.Value);
-                                        // Check if file was copied in resource
-                                        if (!resourcesSourceToTarget.TryGetValue(sourceResourcePath, out var targetResourcePath))
-                                        {
-                                            // This file was not stored in resource, copy it manually
-                                            targetResourcePath = UPath.Combine(resourceOutputPath, (UFile)sourceResourcePath.GetFileName());
-                                            TryCopyResource(sourceResourcePath, targetResourcePath);
-                                        }
-                                        var newValue = targetResourcePath.MakeRelative(outputFile.GetFullDirectory());
-                                        if (scalar.Value != newValue)
-                                        {
-                                            hasChanges = true;
-                                            scalar.Value = newValue;
-                                        }
-                                    }
-                                }
+                                emitter.Emit(parsingEvent);
                             }
-
-                            if (!hasChanges)
-                            {
-                                // We do this because pure text files could be parsed as YAML events even though they are not
-                                File.Copy(asset.FilePath, outputFile, true);
-                            }
-                            else
-                            {
-                                using (var output = File.CreateText(outputFile))
-                                {
-                                    var emitter = new Emitter(output, AssetYamlSerializer.Default.GetSerializerSettings().PreferredIndent);
-                                    foreach (var parsingEvent in parsingEvents)
-                                    {
-                                        emitter.Emit(parsingEvent);
-                                    }
-                                }
-                            }
-
-                            RegisterItem(outputFile);
                         }
+
+                        RegisterItem(outputFile);
                     }
                     catch (YamlException)
                     {

@@ -73,10 +73,8 @@ namespace Stride.GameStudio.View
                     string fileMarkdown;
                     using (var fileStream = new FileStream(filePath, FileMode.Open))
                     {
-                        using (var reader = new StreamReader(fileStream))
-                        {
-                            fileMarkdown = reader.ReadToEnd();
-                        }
+                        using var reader = new StreamReader(fileStream);
+                        fileMarkdown = reader.ReadToEnd();
                     }
 
                     return fileMarkdown;

@@ -49,13 +49,11 @@ namespace Stride.Core.Assets.Editor.Quantum.ViewModels
 
         protected override void SetNodeValue(object newValue)
         {
-            using (var transaction = ServiceProvider.TryGet<IUndoRedoService>()?.CreateTransaction())
+            using var transaction = ServiceProvider.TryGet<IUndoRedoService>()?.CreateTransaction();
+            base.SetNodeValue(newValue);
+            if (transaction != null)
             {
-                base.SetNodeValue(newValue);
-                if (transaction != null)
-                {
-                    ServiceProvider.TryGet<IUndoRedoService>()?.SetName(transaction, $"Update property {DisplayPath}");
-                }
+                ServiceProvider.TryGet<IUndoRedoService>()?.SetName(transaction, $"Update property {DisplayPath}");
             }
         }
 

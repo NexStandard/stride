@@ -236,41 +236,39 @@ namespace Stride.Assets.Sprite
                 if (Parameters.SheetAsset.Alpha != AlphaFormat.None) // Skip the calculation when format is forced without alpha.
                 {
                     var urlToTexImage = new Dictionary<string, Tuple<TexImage, Image>>();
-                    using (var texTool = new TextureTool())
+                    using var texTool = new TextureTool();
+                    foreach (var sprite in imageGroupData.Sprites)
                     {
-                        foreach (var sprite in imageGroupData.Sprites)
+                        if (sprite.Texture == null) // the sprite texture is invalid
+                            continue;
+
+                        var textureUrl = AttachedReferenceManager.GetOrCreateAttachedReference(sprite.Texture).Url;
+                        if (!urlToTexImage.ContainsKey(textureUrl))
                         {
-                            if (sprite.Texture == null) // the sprite texture is invalid
-                                continue;
-
-                            var textureUrl = AttachedReferenceManager.GetOrCreateAttachedReference(sprite.Texture).Url;
-                            if (!urlToTexImage.ContainsKey(textureUrl))
-                            {
-                                var image = assetManager.Load<Image>(textureUrl);
-                                var newTexImage = texTool.Load(image, false);// the sRGB mode does not impact on the alpha level
-                                texTool.Decompress(newTexImage, false);// the sRGB mode does not impact on the alpha level
-                                urlToTexImage[textureUrl] = Tuple.Create(newTexImage, image);
-                            }
-                            var texImage = urlToTexImage[textureUrl].Item1;
-
-                            var region = new Rectangle
-                            {
-                                X = (int)Math.Floor(sprite.Region.X),
-                                Y = (int)Math.Floor(sprite.Region.Y)
-                            };
-                            region.Width = (int)Math.Ceiling(sprite.Region.Right) - region.X;
-                            region.Height = (int)Math.Ceiling(sprite.Region.Bottom) - region.Y;
-
-                            var alphaLevel = texTool.GetAlphaLevels(texImage, region, null, commandContext.Logger); // ignore transparent color key here because the input image has already been processed
-                            sprite.IsTransparent = alphaLevel != AlphaLevels.NoAlpha; 
+                            var image = assetManager.Load<Image>(textureUrl);
+                            var newTexImage = texTool.Load(image, false);// the sRGB mode does not impact on the alpha level
+                            texTool.Decompress(newTexImage, false);// the sRGB mode does not impact on the alpha level
+                            urlToTexImage[textureUrl] = Tuple.Create(newTexImage, image);
                         }
+                        var texImage = urlToTexImage[textureUrl].Item1;
 
-                        // free all the allocated images
-                        foreach (var tuple in urlToTexImage.Values)
+                        var region = new Rectangle
                         {
-                            tuple.Item1.Dispose();
-                            assetManager.Unload(tuple.Item2);
-                        }
+                            X = (int)Math.Floor(sprite.Region.X),
+                            Y = (int)Math.Floor(sprite.Region.Y)
+                        };
+                        region.Width = (int)Math.Ceiling(sprite.Region.Right) - region.X;
+                        region.Height = (int)Math.Ceiling(sprite.Region.Bottom) - region.Y;
+
+                        var alphaLevel = texTool.GetAlphaLevels(texImage, region, null, commandContext.Logger); // ignore transparent color key here because the input image has already been processed
+                        sprite.IsTransparent = alphaLevel != AlphaLevels.NoAlpha;
+                    }
+
+                    // free all the allocated images
+                    foreach (var tuple in urlToTexImage.Values)
+                    {
+                        tuple.Item1.Dispose();
+                        assetManager.Unload(tuple.Item2);
                     }
                 }
 
@@ -292,99 +290,97 @@ namespace Stride.Assets.Sprite
                 spriteToPackedSprite = new Dictionary<SpriteInfo, PackedSpriteInfo>();
 
                 // Pack textures
-                using (var texTool = new TextureTool())
+                using var texTool = new TextureTool();
+                var textureElements = new List<AtlasTextureElement>();
+
+                // Input textures
+                var imageDictionary = new Dictionary<string, Image>();
+                var imageInfoDictionary = new Dictionary<string, SpriteInfo>();
+
+                var sprites = Parameters.SheetAsset.Sprites;
+                var packingParameters = Parameters.SheetAsset.Packing;
+                bool isSRgb = Parameters.SheetAsset.IsSRGBTexture(Parameters.ColorSpace);
+
+                for (var i = 0; i < sprites.Count; ++i)
                 {
-                    var textureElements = new List<AtlasTextureElement>();
+                    var sprite = sprites[i];
+                    if (sprite.TextureRegion.Height == 0 || sprite.TextureRegion.Width == 0 || sprite.Source == null)
+                        continue;
 
-                    // Input textures
-                    var imageDictionary = new Dictionary<string, Image>();
-                    var imageInfoDictionary = new Dictionary<string, SpriteInfo>();
+                    // Lazy load input texture and cache in the dictionary for the later use
+                    Image texture;
 
-                    var sprites = Parameters.SheetAsset.Sprites;
-                    var packingParameters = Parameters.SheetAsset.Packing;
-                    bool isSRgb = Parameters.SheetAsset.IsSRGBTexture(Parameters.ColorSpace);
-
-                    for (var i = 0; i < sprites.Count; ++i)
+                    if (!imageDictionary.ContainsKey(sprite.Source))
                     {
-                        var sprite = sprites[i];
-                        if (sprite.TextureRegion.Height == 0 || sprite.TextureRegion.Width == 0 || sprite.Source == null)
-                            continue;
-
-                        // Lazy load input texture and cache in the dictionary for the later use
-                        Image texture;
-
-                        if (!imageDictionary.ContainsKey(sprite.Source))
-                        {
-                            texture = LoadImage(texTool, new UFile(sprite.Source), isSRgb);
-                            imageDictionary[sprite.Source] = texture;
-                        }
-                        else
-                        {
-                            texture = imageDictionary[sprite.Source];
-                        }
-
-                        var key = Url + "_" + i;
-
-                        var sourceRectangle = new RotableRectangle(sprite.TextureRegion, sprite.Orientation == ImageOrientation.Rotated90);
-                        textureElements.Add(new AtlasTextureElement(key, texture, sourceRectangle, packingParameters.BorderSize, sprite.BorderModeU, sprite.BorderModeV, sprite.BorderColor));
-
-                        imageInfoDictionary[key] = sprite;
+                        texture = LoadImage(texTool, new UFile(sprite.Source), isSRgb);
+                        imageDictionary[sprite.Source] = texture;
+                    }
+                    else
+                    {
+                        texture = imageDictionary[sprite.Source];
                     }
 
-                    // find the maximum texture size supported
-                    var maximumSize = TextureHelper.FindMaximumTextureSize(new TextureHelper.ImportParameters(Parameters), new Size2(int.MaxValue/2, int.MaxValue/2));
+                    var key = Url + "_" + i;
 
-                    // Initialize packing configuration from GroupAsset
-                    var texturePacker = new TexturePacker
-                    {
-                        Algorithm = packingParameters.PackingAlgorithm,
-                        AllowMultipack = packingParameters.AllowMultipacking,
-                        MaxWidth = maximumSize.Width,
-                        MaxHeight = maximumSize.Height,
-                        AllowRotation = packingParameters.AllowRotations,
-                    };
+                    var sourceRectangle = new RotableRectangle(sprite.TextureRegion, sprite.Orientation == ImageOrientation.Rotated90);
+                    textureElements.Add(new AtlasTextureElement(key, texture, sourceRectangle, packingParameters.BorderSize, sprite.BorderModeU, sprite.BorderModeV, sprite.BorderColor));
 
-                    var canPackAllTextures = texturePacker.PackTextures(textureElements);
-
-                    if (!canPackAllTextures)
-                    {
-                        commandContext.Logger.Error("Failed to pack all textures");
-                        return ResultStatus.Failed;
-                    }
-
-                    // Create and save every generated texture atlas
-                    for (var textureAtlasIndex = 0; textureAtlasIndex < texturePacker.AtlasTextureLayouts.Count; ++textureAtlasIndex)
-                    {
-                        var atlasLayout = texturePacker.AtlasTextureLayouts[textureAtlasIndex];
-
-                        ResultStatus resultStatus;
-                        using (var atlasImage = AtlasTextureFactory.CreateTextureAtlas(atlasLayout, isSRgb))
-                        using (var texImage = texTool.Load(atlasImage, isSRgb))
-                        {
-                            var outputUrl = SpriteSheetAsset.BuildTextureAtlasUrl(Url, textureAtlasIndex);
-                            var convertParameters = new TextureHelper.ImportParameters(Parameters) { OutputUrl = outputUrl };
-                            resultStatus = TextureHelper.ShouldUseDataContainer(Parameters.SheetAsset.IsStreamable && Parameters.SheetAsset.Type != SpriteSheetType.UI, texImage.Dimension)? 
-                                TextureHelper.ImportStreamableTextureImage(assetManager, texTool, texImage, convertParameters, CancellationToken, commandContext) : 
-                                TextureHelper.ImportTextureImage(assetManager, texTool, texImage, convertParameters, CancellationToken, commandContext.Logger);
-                        }
-
-                        foreach (var texture in atlasLayout.Textures)
-                            spriteToPackedSprite.Add(imageInfoDictionary[texture.Name], new PackedSpriteInfo(texture.DestinationRegion, textureAtlasIndex, packingParameters.BorderSize));
-
-                        if (resultStatus != ResultStatus.Successful)
-                        {
-                            // Dispose used textures
-                            foreach (var image in imageDictionary.Values)
-                                image.Dispose();
-
-                            return resultStatus;
-                        }
-                    }
-
-                    // Dispose used textures
-                    foreach (var image in imageDictionary.Values)
-                        image.Dispose();
+                    imageInfoDictionary[key] = sprite;
                 }
+
+                // find the maximum texture size supported
+                var maximumSize = TextureHelper.FindMaximumTextureSize(new TextureHelper.ImportParameters(Parameters), new Size2(int.MaxValue / 2, int.MaxValue / 2));
+
+                // Initialize packing configuration from GroupAsset
+                var texturePacker = new TexturePacker
+                {
+                    Algorithm = packingParameters.PackingAlgorithm,
+                    AllowMultipack = packingParameters.AllowMultipacking,
+                    MaxWidth = maximumSize.Width,
+                    MaxHeight = maximumSize.Height,
+                    AllowRotation = packingParameters.AllowRotations,
+                };
+
+                var canPackAllTextures = texturePacker.PackTextures(textureElements);
+
+                if (!canPackAllTextures)
+                {
+                    commandContext.Logger.Error("Failed to pack all textures");
+                    return ResultStatus.Failed;
+                }
+
+                // Create and save every generated texture atlas
+                for (var textureAtlasIndex = 0; textureAtlasIndex < texturePacker.AtlasTextureLayouts.Count; ++textureAtlasIndex)
+                {
+                    var atlasLayout = texturePacker.AtlasTextureLayouts[textureAtlasIndex];
+
+                    ResultStatus resultStatus;
+                    using (var atlasImage = AtlasTextureFactory.CreateTextureAtlas(atlasLayout, isSRgb))
+                    using (var texImage = texTool.Load(atlasImage, isSRgb))
+                    {
+                        var outputUrl = SpriteSheetAsset.BuildTextureAtlasUrl(Url, textureAtlasIndex);
+                        var convertParameters = new TextureHelper.ImportParameters(Parameters) { OutputUrl = outputUrl };
+                        resultStatus = TextureHelper.ShouldUseDataContainer(Parameters.SheetAsset.IsStreamable && Parameters.SheetAsset.Type != SpriteSheetType.UI, texImage.Dimension) ?
+                            TextureHelper.ImportStreamableTextureImage(assetManager, texTool, texImage, convertParameters, CancellationToken, commandContext) :
+                            TextureHelper.ImportTextureImage(assetManager, texTool, texImage, convertParameters, CancellationToken, commandContext.Logger);
+                    }
+
+                    foreach (var texture in atlasLayout.Textures)
+                        spriteToPackedSprite.Add(imageInfoDictionary[texture.Name], new PackedSpriteInfo(texture.DestinationRegion, textureAtlasIndex, packingParameters.BorderSize));
+
+                    if (resultStatus != ResultStatus.Successful)
+                    {
+                        // Dispose used textures
+                        foreach (var image in imageDictionary.Values)
+                            image.Dispose();
+
+                        return resultStatus;
+                    }
+                }
+
+                // Dispose used textures
+                foreach (var image in imageDictionary.Values)
+                    image.Dispose();
 
                 return ResultStatus.Successful;
             }
@@ -398,15 +394,13 @@ namespace Stride.Assets.Sprite
             /// <returns></returns>
             private static Image LoadImage(TextureTool texTool, UFile sourcePath, bool isSRgb)
             {
-                using (var texImage = texTool.Load(sourcePath, isSRgb))
-                {
-                    texTool.Decompress(texImage, isSRgb);
+                using var texImage = texTool.Load(sourcePath, isSRgb);
+                texTool.Decompress(texImage, isSRgb);
 
-                    if (texImage.Format == PixelFormat.B8G8R8A8_UNorm || texImage.Format == PixelFormat.B8G8R8A8_UNorm_SRgb)
-                        texTool.SwitchChannel(texImage);
+                if (texImage.Format == PixelFormat.B8G8R8A8_UNorm || texImage.Format == PixelFormat.B8G8R8A8_UNorm_SRgb)
+                    texTool.SwitchChannel(texImage);
 
-                    return texTool.ConvertToStrideImage(texImage);
-                }
+                return texTool.ConvertToStrideImage(texImage);
             }
 
             private class PackedSpriteInfo

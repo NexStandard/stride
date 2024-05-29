@@ -29,17 +29,13 @@ namespace Stride.Core.Assets.TextAccessors
         {
             if (text != null)
             {
-                using (var streamWriter = new StreamWriter(stream, Encoding.UTF8, 1024, true))
-                {
-                    await streamWriter.WriteAsync(text);
-                }
+                using var streamWriter = new StreamWriter(stream, Encoding.UTF8, 1024, true);
+                await streamWriter.WriteAsync(text);
             }
             else if (FilePath != null)
             {
-                using (var inputStream = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, bufferSize: 4096, useAsync: true))
-                {
-                    await inputStream.CopyToAsync(stream);
-                }
+                using var inputStream = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, bufferSize: 4096, useAsync: true);
+                await inputStream.CopyToAsync(stream);
             }
         }
 

@@ -136,29 +136,25 @@ namespace Stride.Assets.Presentation.AssetEditors.VisualScriptEditor
 
         private void RemoveSelectedParameters()
         {
-            using (var transaction = editor.UndoRedoService.CreateTransaction())
+            using var transaction = editor.UndoRedoService.CreateTransaction();
+            foreach (var parameter in SelectedParameters.Cast<NodeViewModel>().Select(x => (Parameter)x.NodeValue).ToList())
             {
-                foreach (var parameter in SelectedParameters.Cast<NodeViewModel>().Select(x => (Parameter)x.NodeValue).ToList())
-                {
-                    method.RemoveParameter(parameter);
-                }
-
-                editor.UndoRedoService.SetName(transaction, "Delete variable(s)");
+                method.RemoveParameter(parameter);
             }
+
+            editor.UndoRedoService.SetName(transaction, "Delete variable(s)");
         }
 
         public void FinalizeMoves()
         {
-            using (var transaction = editor.UndoRedoService.CreateTransaction())
+            using var transaction = editor.UndoRedoService.CreateTransaction();
+            // Check every selected element to update its final position (in case it changed)
+            foreach (var selectedVertex in SelectedBlocks)
             {
-                // Check every selected element to update its final position (in case it changed)
-                foreach (var selectedVertex in SelectedBlocks)
-                {
-                    selectedVertex.FinalizeMove();
-                }
-
-                editor.UndoRedoService.SetName(transaction, "Moved graph elements");
+                selectedVertex.FinalizeMove();
             }
+
+            editor.UndoRedoService.SetName(transaction, "Moved graph elements");
         }
 
         #region Drag & Drop
@@ -214,18 +210,16 @@ namespace Stride.Assets.Presentation.AssetEditors.VisualScriptEditor
         private void DeleteSelection()
         {
             // Group everything as a single transaction, since it might delete multiple blocks, and it will also remove dependent links
-            using (var transaction = editor.UndoRedoService.CreateTransaction())
-            {
-                // Delete each selected link
-                foreach (var link in SelectedLinks.ToArray())
-                    method.RemoveLink(link.ViewModel.Link);
+            using var transaction = editor.UndoRedoService.CreateTransaction();
+            // Delete each selected link
+            foreach (var link in SelectedLinks.ToArray())
+                method.RemoveLink(link.ViewModel.Link);
 
-                // Delete each selected block
-                foreach (var block in SelectedBlocks.ToArray())
-                    method.RemoveBlock(block.ViewModel.Block);
+            // Delete each selected block
+            foreach (var block in SelectedBlocks.ToArray())
+                method.RemoveBlock(block.ViewModel.Block);
 
-                editor.UndoRedoService.SetName(transaction, "Deleting selected graph elements");
-            }
+            editor.UndoRedoService.SetName(transaction, "Deleting selected graph elements");
         }
 
         public void ContextMenuOpening(System.Windows.Point mousePosition)
@@ -301,23 +295,21 @@ namespace Stride.Assets.Presentation.AssetEditors.VisualScriptEditor
 
         private async Task AddBlockViewModel(Block block)
         {
-            using (var transaction = editor.UndoRedoService.CreateTransaction(TransactionFlags.KeepParentsAlive))
-            {
-                var viewModel = new VisualScriptBlockViewModel(this, block);
-                var blockNodeVertex = new BlockNodeVertex(viewModel);
+            using var transaction = editor.UndoRedoService.CreateTransaction(TransactionFlags.KeepParentsAlive);
+            var viewModel = new VisualScriptBlockViewModel(this, block);
+            var blockNodeVertex = new BlockNodeVertex(viewModel);
 
-                // Update initial diagnostics (if any)
-                foreach (var diagnostic in editor.Diagnostics.Where(x => x.BlockId.HasValue && x.BlockId.Value == block.Id))
-                    viewModel.Diagnostics.Add(diagnostic);
+            // Update initial diagnostics (if any)
+            foreach (var diagnostic in editor.Diagnostics.Where(x => x.BlockId.HasValue && x.BlockId.Value == block.Id))
+                viewModel.Diagnostics.Add(diagnostic);
 
-                blocks.Add(blockNodeVertex);
-                blockMapping.Add(block, blockNodeVertex);
+            blocks.Add(blockNodeVertex);
+            blockMapping.Add(block, blockNodeVertex);
 
-                // (Re)generate slots
-                await this.method.RegenerateSlots(block);
+            // (Re)generate slots
+            await this.method.RegenerateSlots(block);
 
-                editor.UndoRedoService.SetName(transaction, "Added block");
-            }
+            editor.UndoRedoService.SetName(transaction, "Added block");
         }
 
         private void RemoveBlockViewModel(Block block)

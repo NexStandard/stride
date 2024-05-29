@@ -94,11 +94,9 @@ namespace Stride.Core.Assets
         /// <returns>An instance of Asset not a valid asset asset object file.</returns>
         public static AssetLoadResult<T> Load<T>(string filePath, ILogger log = null)
         {
-            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-            {
-                var result = Load<T>(stream, filePath, log);
-                return result;
-            }
+            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var result = Load<T>(stream, filePath, log);
+            return result;
         }
 
         public static AssetLoadResult<T> Load<T>(Stream stream, UFile filePath, ILogger log = null)
@@ -137,11 +135,9 @@ namespace Stride.Core.Assets
                 Directory.CreateDirectory(directoryPath);
             }
 
-            using (var stream = new MemoryStream())
-            {
-                Save(stream, asset, yamlMetadata, log);
-                File.WriteAllBytes(filePath, stream.ToArray());
-            }
+            using var stream = new MemoryStream();
+            Save(stream, asset, yamlMetadata, log);
+            File.WriteAllBytes(filePath, stream.ToArray());
         }
 
         /// <summary>

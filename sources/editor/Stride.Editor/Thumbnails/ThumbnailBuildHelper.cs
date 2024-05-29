@@ -90,25 +90,23 @@ namespace Stride.Editor.Thumbnails
             if (dependencyBuildStatus < LogMessageType.Warning)
                 return;
 
-            using (var thumbnailBuilderHelper = new ThumbnailBuildHelper())
+            using var thumbnailBuilderHelper = new ThumbnailBuildHelper();
+            if (errorTexture == null)
             {
-                if (errorTexture == null)
-                {
-                    // Load status textures
-                    errorTexture = TextureExtensions.FromFileData(thumbnailBuilderHelper.GraphicsDevice, DefaultThumbnails.ThumbnailDependencyError);
-                    warningTexture = TextureExtensions.FromFileData(thumbnailBuilderHelper.GraphicsDevice, DefaultThumbnails.ThumbnailDependencyWarning);
-                }
-
-                var texture = dependencyBuildStatus == LogMessageType.Warning ? warningTexture : errorTexture;
-                using (var thumbnailTexture = Texture.New(thumbnailBuilderHelper.GraphicsDevice, thumbnailImage))
-                {
-                    thumbnailBuilderHelper.CombineTextures(thumbnailTexture, texture, thumbnailImage.Description.Width - texture.Width - 4, thumbnailImage.Description.Height - texture.Height - 4);
-                }
-
-                // Read back result to image
-                thumbnailBuilderHelper.RenderTarget.GetData(thumbnailBuilderHelper.GraphicsContext.CommandList, thumbnailBuilderHelper.RenderTargetStaging, new DataPointer(thumbnailImage.PixelBuffer[0].DataPointer, thumbnailImage.PixelBuffer[0].BufferStride));
-                thumbnailImage.Description.Format = thumbnailBuilderHelper.RenderTarget.Format; // In case channels are swapped
+                // Load status textures
+                errorTexture = TextureExtensions.FromFileData(thumbnailBuilderHelper.GraphicsDevice, DefaultThumbnails.ThumbnailDependencyError);
+                warningTexture = TextureExtensions.FromFileData(thumbnailBuilderHelper.GraphicsDevice, DefaultThumbnails.ThumbnailDependencyWarning);
             }
+
+            var texture = dependencyBuildStatus == LogMessageType.Warning ? warningTexture : errorTexture;
+            using (var thumbnailTexture = Texture.New(thumbnailBuilderHelper.GraphicsDevice, thumbnailImage))
+            {
+                thumbnailBuilderHelper.CombineTextures(thumbnailTexture, texture, thumbnailImage.Description.Width - texture.Width - 4, thumbnailImage.Description.Height - texture.Height - 4);
+            }
+
+            // Read back result to image
+            thumbnailBuilderHelper.RenderTarget.GetData(thumbnailBuilderHelper.GraphicsContext.CommandList, thumbnailBuilderHelper.RenderTargetStaging, new DataPointer(thumbnailImage.PixelBuffer[0].DataPointer, thumbnailImage.PixelBuffer[0].BufferStride));
+            thumbnailImage.Description.Format = thumbnailBuilderHelper.RenderTarget.Format; // In case channels are swapped
         }
 
         public void Combine(Texture texture, Image image)

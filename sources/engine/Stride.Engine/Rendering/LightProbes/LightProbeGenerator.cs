@@ -28,68 +28,66 @@ namespace Stride.Rendering.LightProbes
 
         public static Dictionary<LightProbeComponent, FastList<Color3>> GenerateCoefficients(ISceneRendererContext context)
         {
-            using (var cubemapRenderer = new CubemapSceneRenderer(context, 256))
+            using var cubemapRenderer = new CubemapSceneRenderer(context, 256);
+            // Create target cube texture
+            var cubeTexture = Texture.NewCube(context.GraphicsDevice, 256, PixelFormat.R16G16B16A16_Float);
+
+            // Prepare shader for SH prefiltering
+            var lambertFiltering = new LambertianPrefilteringSHNoCompute(cubemapRenderer.DrawContext.RenderContext)
             {
-                // Create target cube texture
-                var cubeTexture = Texture.NewCube(context.GraphicsDevice, 256, PixelFormat.R16G16B16A16_Float);
+                HarmonicOrder = LambertHamonicOrder,
+                RadianceMap = cubeTexture,
+            };
 
-                // Prepare shader for SH prefiltering
-                var lambertFiltering = new LambertianPrefilteringSHNoCompute(cubemapRenderer.DrawContext.RenderContext)
+            var lightProbesCoefficients = new Dictionary<LightProbeComponent, FastList<Color3>>();
+
+            using (cubemapRenderer.DrawContext.PushRenderTargetsAndRestore())
+            {
+                // Render light probe
+                context.GraphicsContext.CommandList.BeginProfile(Color.Red, "LightProbes");
+
+                int lightProbeIndex = 0;
+                foreach (var entity in context.SceneSystem.SceneInstance)
                 {
-                    HarmonicOrder = LambertHamonicOrder,
-                    RadianceMap = cubeTexture,
-                };
+                    var lightProbe = entity.Get<LightProbeComponent>();
+                    if (lightProbe == null)
+                        continue;
 
-                var lightProbesCoefficients = new Dictionary<LightProbeComponent, FastList<Color3>>();
+                    var lightProbePosition = lightProbe.Entity.Transform.WorldMatrix.TranslationVector;
+                    context.GraphicsContext.ResourceGroupAllocator.Reset(context.GraphicsContext.CommandList);
 
-                using (cubemapRenderer.DrawContext.PushRenderTargetsAndRestore())
-                {
-                    // Render light probe
-                    context.GraphicsContext.CommandList.BeginProfile(Color.Red, "LightProbes");
+                    context.GraphicsContext.CommandList.BeginProfile(Color.Red, $"LightProbes {lightProbeIndex}");
+                    lightProbeIndex++;
 
-                    int lightProbeIndex = 0;
-                    foreach (var entity in context.SceneSystem.SceneInstance)
+                    cubemapRenderer.Draw(lightProbePosition, cubeTexture);
+
+                    context.GraphicsContext.CommandList.BeginProfile(Color.Red, "Prefilter SphericalHarmonics");
+
+                    // Compute SH coefficients
+                    lambertFiltering.Draw(cubemapRenderer.DrawContext);
+
+                    var coefficients = lambertFiltering.PrefilteredLambertianSH.Coefficients;
+                    var lightProbeCoefficients = new FastList<Color3>();
+                    for (int i = 0; i < coefficients.Length; i++)
                     {
-                        var lightProbe = entity.Get<LightProbeComponent>();
-                        if (lightProbe == null)
-                            continue;
-
-                        var lightProbePosition = lightProbe.Entity.Transform.WorldMatrix.TranslationVector;
-                        context.GraphicsContext.ResourceGroupAllocator.Reset(context.GraphicsContext.CommandList);
-
-                        context.GraphicsContext.CommandList.BeginProfile(Color.Red, $"LightProbes {lightProbeIndex}");
-                        lightProbeIndex++;
-
-                        cubemapRenderer.Draw(lightProbePosition, cubeTexture);
-
-                        context.GraphicsContext.CommandList.BeginProfile(Color.Red, "Prefilter SphericalHarmonics");
-
-                        // Compute SH coefficients
-                        lambertFiltering.Draw(cubemapRenderer.DrawContext);
-
-                        var coefficients = lambertFiltering.PrefilteredLambertianSH.Coefficients;
-                        var lightProbeCoefficients = new FastList<Color3>();
-                        for (int i = 0; i < coefficients.Length; i++)
-                        {
-                            lightProbeCoefficients.Add(coefficients[i] * SphericalHarmonics.BaseCoefficients[i]);
-                        }
-
-                        lightProbesCoefficients.Add(lightProbe, lightProbeCoefficients);
-
-                        context.GraphicsContext.CommandList.EndProfile(); // Prefilter SphericalHarmonics
-
-                        context.GraphicsContext.CommandList.EndProfile(); // Face XXX
-
-                        // Debug render
+                        lightProbeCoefficients.Add(coefficients[i] * SphericalHarmonics.BaseCoefficients[i]);
                     }
 
-                    context.GraphicsContext.CommandList.EndProfile(); // LightProbes
+                    lightProbesCoefficients.Add(lightProbe, lightProbeCoefficients);
+
+                    context.GraphicsContext.CommandList.EndProfile(); // Prefilter SphericalHarmonics
+
+                    context.GraphicsContext.CommandList.EndProfile(); // Face XXX
+
+                    // Debug render
                 }
 
-                cubeTexture.Dispose();
-
-                return lightProbesCoefficients;
+                context.GraphicsContext.CommandList.EndProfile(); // LightProbes
             }
+
+            cubeTexture.Dispose();
+
+            return lightProbesCoefficients;
         }
 
         public static unsafe void UpdateCoefficients(LightProbeRuntimeData runtimeData)

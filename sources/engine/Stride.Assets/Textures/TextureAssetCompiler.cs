@@ -79,13 +79,11 @@ namespace Stride.Assets.Textures
             {
                 var convertParameters = new TextureHelper.ImportParameters(Parameters) { OutputUrl = Url };
 
-                using (var texTool = new TextureTool())
-                using (var texImage = texTool.Load(Parameters.SourcePathFromDisk, convertParameters.IsSRgb))
-                {
-                    var importResult = Import(commandContext, texTool, texImage, convertParameters);
+                using var texTool = new TextureTool();
+                using var texImage = texTool.Load(Parameters.SourcePathFromDisk, convertParameters.IsSRgb);
+                var importResult = Import(commandContext, texTool, texImage, convertParameters);
 
-                    return Task.FromResult(importResult);
-                }
+                return Task.FromResult(importResult);
             }
 
             protected override void ComputeAssemblyHash(BinarySerializationWriter writer)

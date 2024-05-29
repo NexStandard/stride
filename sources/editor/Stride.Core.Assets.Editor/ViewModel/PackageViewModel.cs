@@ -379,12 +379,10 @@ namespace Stride.Core.Assets.Editor.ViewModel
                 // Note: this should never happen (see comments in method SessionViewModel.DeleteSelectedSolutionItems)
                 throw new InvalidOperationException("System packages cannot be deleted.");
             }
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                string message = $"Delete package '{Name}'";
-                IsDeleted = true;
-                UndoRedoService.SetName(transaction, message);
-            }
+            using var transaction = UndoRedoService.CreateTransaction();
+            string message = $"Delete package '{Name}'";
+            IsDeleted = true;
+            UndoRedoService.SetName(transaction, message);
         }
 
         public void CheckConsistency()
@@ -496,35 +494,33 @@ namespace Stride.Core.Assets.Editor.ViewModel
 
         public async Task AddDependency(PickablePackageViewModel pickablePackageViewModel)
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            var dependency = pickablePackageViewModel.DependencyRange;
+
+            // Check if package isn't a dependency yet
+            if (Package.Container.DirectDependencies.Any(x => x.Name == dependency.Name))
+                return;
+
+            var reference = new DirectDependencyReferenceViewModel(dependency, this, Dependencies, true);
+            UndoRedoService.SetName(transaction, $"Add dependency to package '{reference.Name}'");
+
+            // Update dependencies with NuGet
+            if (Package.Container is SolutionProject project2)
             {
-                var dependency = pickablePackageViewModel.DependencyRange;
+                var log = new LoggerResult();
+                await VSProjectHelper.RestoreNugetPackages(log, project2.FullPath);
+                PackageSession.UpdateDependencies(project2, false, true);
 
-                // Check if package isn't a dependency yet
-                if (Package.Container.DirectDependencies.Any(x => x.Name == dependency.Name))
-                    return;
-
-                var reference = new DirectDependencyReferenceViewModel(dependency, this, Dependencies, true);
-                UndoRedoService.SetName(transaction, $"Add dependency to package '{reference.Name}'");
-
-                // Update dependencies with NuGet
-                if (Package.Container is SolutionProject project2)
+                // If the package is not part of session yet, make sure it gets added at this point
+                foreach (var projectDependency in project2.FlattenedDependencies)
                 {
-                    var log = new LoggerResult();
-                    await VSProjectHelper.RestoreNugetPackages(log, project2.FullPath);
-                    PackageSession.UpdateDependencies(project2, false, true);
-
-                    // If the package is not part of session yet, make sure it gets added at this point
-                    foreach (var projectDependency in project2.FlattenedDependencies)
+                    if (projectDependency.Package == null && projectDependency.Type == DependencyType.Package)
                     {
-                        if (projectDependency.Package == null && projectDependency.Type == DependencyType.Package)
+                        var packageFile = PackageStore.Instance.GetPackageFileName(projectDependency.Name, new PackageVersionRange(projectDependency.Version));
+                        if (packageFile != null && File.Exists(packageFile))
                         {
-                            var packageFile = PackageStore.Instance.GetPackageFileName(projectDependency.Name, new PackageVersionRange(projectDependency.Version));
-                            if (packageFile != null && File.Exists(packageFile))
-                            {
-                                var dependencyPackageViewModel = await Session.AddExistingProject(packageFile);
-                                projectDependency.Package = dependencyPackageViewModel.Package;
-                            }
+                            var dependencyPackageViewModel = await Session.AddExistingProject(packageFile);
+                            projectDependency.Package = dependencyPackageViewModel.Package;
                         }
                     }
                 }
@@ -649,17 +645,15 @@ namespace Stride.Core.Assets.Editor.ViewModel
 
         private void Rename(UFile packagePath)
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                var previousPath = PackagePath;
-                PackagePath = packagePath;
+            using var transaction = UndoRedoService.CreateTransaction();
+            var previousPath = PackagePath;
+            PackagePath = packagePath;
 
-                if (previousPath != PackagePath)
-                {
-                    IsEditing = false;
-                }
-                UndoRedoService.SetName(transaction, $"Rename package '{previousPath.GetFileNameWithoutExtension()}' to '{packagePath.GetFileNameWithoutExtension()}'");
+            if (previousPath != PackagePath)
+            {
+                IsEditing = false;
             }
+            UndoRedoService.SetName(transaction, $"Rename package '{previousPath.GetFileNameWithoutExtension()}' to '{packagePath.GetFileNameWithoutExtension()}'");
         }
 
         protected override bool IsValidName(string value, out string error)

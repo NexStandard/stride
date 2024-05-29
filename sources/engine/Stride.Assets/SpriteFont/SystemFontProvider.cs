@@ -64,12 +64,10 @@ namespace Stride.Assets.SpriteFont
                     throw new FontNotFoundException(FontName);
                 }
 
-                using (var fontFamily = fontCollection.GetFontFamily(index))
-                {
-                    var weight = Style.IsBold() ? FontWeight.Bold : FontWeight.Regular;
-                    var style = Style.IsItalic() ? SharpDX.DirectWrite.FontStyle.Italic : SharpDX.DirectWrite.FontStyle.Normal;
-                    font = fontFamily.GetFirstMatchingFont(weight, FontStretch.Normal, style);
-                }
+                using var fontFamily = fontCollection.GetFontFamily(index);
+                var weight = Style.IsBold() ? FontWeight.Bold : FontWeight.Regular;
+                var style = Style.IsItalic() ? SharpDX.DirectWrite.FontStyle.Italic : SharpDX.DirectWrite.FontStyle.Normal;
+                font = fontFamily.GetFirstMatchingFont(weight, FontStretch.Normal, style);
             }
 
             return new FontFace(font);
@@ -77,41 +75,37 @@ namespace Stride.Assets.SpriteFont
 
         public override string GetFontPath(AssetCompilerResult result = null)
         {
-            using (var factory = new Factory())
+            using var factory = new Factory();
+            Font font;
+
+            using (var fontCollection = factory.GetSystemFontCollection(false))
             {
-                Font font;
-
-                using (var fontCollection = factory.GetSystemFontCollection(false))
+                int index;
+                if (!fontCollection.FindFamilyName(FontName, out index))
                 {
-                    int index;
-                    if (!fontCollection.FindFamilyName(FontName, out index))
-                    {
-                        result?.Error($"Cannot find system font '{FontName}'. Make sure it is installed on this machine.");
-                        return null;
-                    }
-
-                    using (var fontFamily = fontCollection.GetFontFamily(index))
-                    {
-                        var weight = Style.IsBold() ? FontWeight.Bold : FontWeight.Regular;
-                        var style = Style.IsItalic() ? SharpDX.DirectWrite.FontStyle.Italic : SharpDX.DirectWrite.FontStyle.Normal;
-                        font = fontFamily.GetFirstMatchingFont(weight, FontStretch.Normal, style);
-                        if (font == null)
-                        {
-                            result?.Error($"Cannot find style '{Style}' for font family {FontName}. Make sure it is installed on this machine.");
-                            return null;
-                        }
-                    }
+                    result?.Error($"Cannot find system font '{FontName}'. Make sure it is installed on this machine.");
+                    return null;
                 }
 
-                var fontFace = new FontFace(font);
-
-                // get the font path on the hard drive
-                var file = fontFace.GetFiles().First();
-                var referenceKey = file.GetReferenceKey();
-                var originalLoader = (FontFileLoaderNative)file.Loader;
-                var loader = originalLoader.QueryInterface<LocalFontFileLoader>();
-                return loader.GetFilePath(referenceKey);
+                using var fontFamily = fontCollection.GetFontFamily(index);
+                var weight = Style.IsBold() ? FontWeight.Bold : FontWeight.Regular;
+                var style = Style.IsItalic() ? SharpDX.DirectWrite.FontStyle.Italic : SharpDX.DirectWrite.FontStyle.Normal;
+                font = fontFamily.GetFirstMatchingFont(weight, FontStretch.Normal, style);
+                if (font == null)
+                {
+                    result?.Error($"Cannot find style '{Style}' for font family {FontName}. Make sure it is installed on this machine.");
+                    return null;
+                }
             }
+
+            var fontFace = new FontFace(font);
+
+            // get the font path on the hard drive
+            var file = fontFace.GetFiles().First();
+            var referenceKey = file.GetReferenceKey();
+            var originalLoader = (FontFileLoaderNative)file.Loader;
+            var loader = originalLoader.QueryInterface<LocalFontFileLoader>();
+            return loader.GetFilePath(referenceKey);
         }
 
         /// <inheritdoc/>

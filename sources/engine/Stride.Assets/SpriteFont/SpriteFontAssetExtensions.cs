@@ -39,8 +39,8 @@ namespace Stride.Assets.SpriteFont
             if (textures != null && textures.Count > 0)
             {
                 // save the texture   TODO support for multi-texture
-                using (var stream = File.OpenWrite(textureFileName))
-                    staticFont.Textures[0].GetSerializationData().Image.Save(stream, imageType);
+                using var stream = File.OpenWrite(textureFileName);
+                staticFont.Textures[0].GetSerializationData().Image.Save(stream, imageType);
             }
 
             var precompiledAsset = new PrecompiledSpriteFontAsset
@@ -87,8 +87,8 @@ namespace Stride.Assets.SpriteFont
             if (textures != null && textures.Count > 0)
             {
                 // save the texture   TODO support for multi-texture
-                using (var stream = File.OpenWrite(textureFileName))
-                    scalableFont.Textures[0].GetSerializationData().Image.Save(stream, imageType);
+                using var stream = File.OpenWrite(textureFileName);
+                scalableFont.Textures[0].GetSerializationData().Image.Save(stream, imageType);
             }
 
             var precompiledAsset = new PrecompiledSpriteFontAsset

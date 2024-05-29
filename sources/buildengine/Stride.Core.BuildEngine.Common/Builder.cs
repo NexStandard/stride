@@ -330,18 +330,16 @@ namespace Stride.Core.BuildEngine
                 VirtualFileSystem.FileDelete(IndexFileFullPath);
             }
 
-            using (var indexFile = ContentIndexMap.NewTool(indexName))
-            {
-                // Filter database Location
-                indexFile.AddValues(
-                    Root.OutputObjects.Where(x => x.Key.Type == UrlType.Content)
-                        .Select(x => new KeyValuePair<string, ObjectId>(x.Key.Path, x.Value.ObjectId)));
+            using var indexFile = ContentIndexMap.NewTool(indexName);
+            // Filter database Location
+            indexFile.AddValues(
+                Root.OutputObjects.Where(x => x.Key.Type == UrlType.Content)
+                    .Select(x => new KeyValuePair<string, ObjectId>(x.Key.Path, x.Value.ObjectId)));
 
-                foreach (var outputObject in Root.OutputObjects.Where(x => x.Key.Type == UrlType.Content).Select(x => x.Value))
-                {
-                    if (outputObject.Tags.Contains(DoNotCompressTag))
-                        DisableCompressionIds.Add(outputObject.ObjectId);
-                }
+            foreach (var outputObject in Root.OutputObjects.Where(x => x.Key.Type == UrlType.Content).Select(x => x.Value))
+            {
+                if (outputObject.Tags.Contains(DoNotCompressTag))
+                    DisableCompressionIds.Add(outputObject.ObjectId);
             }
         }
 

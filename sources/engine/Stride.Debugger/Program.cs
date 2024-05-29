@@ -72,11 +72,9 @@ namespace Stride
                 // Open WCF channel with master builder
                 try
                 {
-                    using (var channel = new NpClient<IGameDebuggerHost>(new NpEndPoint(hostPipe)))
-                    {
-                        var gameDebuggerTarget = new GameDebuggerTarget();
-                        gameDebuggerTarget.MainLoop(channel.Proxy);
-                    }
+                    using var channel = new NpClient<IGameDebuggerHost>(new NpEndPoint(hostPipe));
+                    var gameDebuggerTarget = new GameDebuggerTarget();
+                    gameDebuggerTarget.MainLoop(channel.Proxy);
                 }
                 catch (Exception)
                 {

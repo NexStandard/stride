@@ -427,18 +427,16 @@ namespace Stride.Assets.Presentation.AssetEditors.EntityHierarchyEditor.ViewMode
                     }
 
                     // Add or replace the component
-                    using (var transaction = Editor.UndoRedoService.CreateTransaction())
+                    using var transaction = Editor.UndoRedoService.CreateTransaction();
+                    if (replaceIndex == -1)
                     {
-                        if (replaceIndex == -1)
-                        {
-                            componentsNode.Add(component);
-                            Editor.UndoRedoService.SetName(transaction, $"Add component {component.GetType().Name}");
-                        }
-                        else
-                        {
-                            componentsNode.Update(component, new NodeIndex(replaceIndex));
-                            Editor.UndoRedoService.SetName(transaction, $"Replace component {component.GetType().Name}");
-                        }
+                        componentsNode.Add(component);
+                        Editor.UndoRedoService.SetName(transaction, $"Add component {component.GetType().Name}");
+                    }
+                    else
+                    {
+                        componentsNode.Update(component, new NodeIndex(replaceIndex));
+                        Editor.UndoRedoService.SetName(transaction, $"Replace component {component.GetType().Name}");
                     }
                 }
             }

@@ -180,25 +180,23 @@ namespace Stride.TextureConverter
             /// <param name="filePath">The file path.</param>
             public void Export(string filePath)
             {
-                using (var file = new StreamWriter(@filePath, false))
+                using var file = new StreamWriter(@filePath, false);
+                XElement xml = new XElement("texture-list");
+
+                //file.WriteLine("<texture-list>");
+                foreach (var entry in TexList)
                 {
-                    XElement xml = new XElement("texture-list");
+                    xml.Add(new XElement("texture",
+                        new XAttribute("name", entry.Key),
+                        new XAttribute("uOffset", entry.Value.UOffset),
+                        new XAttribute("vOffset", entry.Value.VOffset),
+                        new XAttribute("width", entry.Value.Width),
+                        new XAttribute("height", entry.Value.Height)));
 
-                    //file.WriteLine("<texture-list>");
-                    foreach (var entry in TexList)
-                    {
-                        xml.Add(new XElement("texture",
-                            new XAttribute("name", entry.Key),
-                            new XAttribute("uOffset", entry.Value.UOffset),
-                            new XAttribute("vOffset", entry.Value.VOffset),
-                            new XAttribute("width", entry.Value.Width),
-                            new XAttribute("height", entry.Value.Height)));
-
-                        //file.WriteLine("    <texture name=\"" + entry.Key + "\" uOffset=\"" + entry.Value.UOffset + "\" vOffset=\"" + entry.Value.VOffset + "\" width=\"" + entry.Value.Width + "\" height=\"" + entry.Value.Height + "\" />");
-                    }
-                    //file.WriteLine("</texture-list>");
-                    file.Write(xml);
+                    //file.WriteLine("    <texture name=\"" + entry.Key + "\" uOffset=\"" + entry.Value.UOffset + "\" vOffset=\"" + entry.Value.VOffset + "\" width=\"" + entry.Value.Width + "\" height=\"" + entry.Value.Height + "\" />");
                 }
+                //file.WriteLine("</texture-list>");
+                file.Write(xml);
             }
 
 

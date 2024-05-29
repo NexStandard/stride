@@ -39,33 +39,31 @@ namespace Stride.Assets.SpriteFont
 
             var factory = new Factory();
 
-            using (var fontFile = new FontFile(factory, Source))
+            using var fontFile = new FontFile(factory, Source);
+            FontSimulations fontSimulations;
+            switch (Style)
             {
-                FontSimulations fontSimulations;
-                switch (Style)
-                {
-                    case Stride.Graphics.Font.FontStyle.Regular:
-                        fontSimulations = FontSimulations.None;
-                        break;
-                    case Stride.Graphics.Font.FontStyle.Bold:
-                        fontSimulations = FontSimulations.Bold;
-                        break;
-                    case Stride.Graphics.Font.FontStyle.Italic:
-                        fontSimulations = FontSimulations.Oblique;
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
-
-                RawBool isSupported;
-                FontFileType fontType;
-                FontFaceType faceType;
-                int numberFaces;
-
-                fontFile.Analyze(out isSupported, out fontType, out faceType, out numberFaces);
-
-                return new FontFace(factory, faceType, new[] { fontFile }, 0, fontSimulations);
+                case Stride.Graphics.Font.FontStyle.Regular:
+                    fontSimulations = FontSimulations.None;
+                    break;
+                case Stride.Graphics.Font.FontStyle.Bold:
+                    fontSimulations = FontSimulations.Bold;
+                    break;
+                case Stride.Graphics.Font.FontStyle.Italic:
+                    fontSimulations = FontSimulations.Oblique;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
+
+            RawBool isSupported;
+            FontFileType fontType;
+            FontFaceType faceType;
+            int numberFaces;
+
+            fontFile.Analyze(out isSupported, out fontType, out faceType, out numberFaces);
+
+            return new FontFace(factory, faceType, new[] { fontFile }, 0, fontSimulations);
         }
 
         /// <inheritdoc/>

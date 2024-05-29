@@ -418,17 +418,15 @@ namespace Stride.GameStudio.View
             var package = Editor.Session.CurrentProject;
             if (package != null)
             {
-                using (var transaction = Editor.Session.UndoRedoService.CreateTransaction())
-                {
-                    var dir = package.AssetMountPoint;
-                    var name = NamingHelper.ComputeNewName("TestAsset", x => dir.Assets.Any(y => string.Equals(x, y.Name, StringComparison.OrdinalIgnoreCase)));
-                    var asset = TestAsset.CreateNew();
-                    var assetItem = new AssetItem(name, asset);
-                    var assetViewModel = package.CreateAsset(dir, assetItem, true, null);
-                    Editor.Session.NotifyAssetPropertiesChanged(new[] { assetViewModel });
-                    Editor.Session.ActiveAssetView.SelectAssets(new[] { assetViewModel });
-                    Editor.Session.UndoRedoService.SetName(transaction, $"Create test asset '{name}'");
-                }
+                using var transaction = Editor.Session.UndoRedoService.CreateTransaction();
+                var dir = package.AssetMountPoint;
+                var name = NamingHelper.ComputeNewName("TestAsset", x => dir.Assets.Any(y => string.Equals(x, y.Name, StringComparison.OrdinalIgnoreCase)));
+                var asset = TestAsset.CreateNew();
+                var assetItem = new AssetItem(name, asset);
+                var assetViewModel = package.CreateAsset(dir, assetItem, true, null);
+                Editor.Session.NotifyAssetPropertiesChanged(new[] { assetViewModel });
+                Editor.Session.ActiveAssetView.SelectAssets(new[] { assetViewModel });
+                Editor.Session.UndoRedoService.SetName(transaction, $"Create test asset '{name}'");
             }
 #endif
         }
@@ -439,17 +437,15 @@ namespace Stride.GameStudio.View
             var package = Editor.Session.CurrentProject;
             if (package != null)
             {
-                using (var transaction = Editor.Session.UndoRedoService.CreateTransaction())
-                {
-                    var dir = package.AssetMountPoint;
-                    var name = NamingHelper.ComputeNewName("UnitTestAsset", x => dir.Assets.Any(y => string.Equals(x, y.Name, StringComparison.OrdinalIgnoreCase)));
-                    var asset = UnitTestAsset.CreateNew();
-                    var assetItem = new AssetItem(name, asset);
-                    var assetViewModel = package.CreateAsset(dir, assetItem, true, null);
-                    Editor.Session.NotifyAssetPropertiesChanged(new[] { assetViewModel });
-                    Editor.Session.ActiveAssetView.SelectAssets(new[] { assetViewModel });
-                    Editor.Session.UndoRedoService.SetName(transaction, $"Create test asset '{name}'");
-                }
+                using var transaction = Editor.Session.UndoRedoService.CreateTransaction();
+                var dir = package.AssetMountPoint;
+                var name = NamingHelper.ComputeNewName("UnitTestAsset", x => dir.Assets.Any(y => string.Equals(x, y.Name, StringComparison.OrdinalIgnoreCase)));
+                var asset = UnitTestAsset.CreateNew();
+                var assetItem = new AssetItem(name, asset);
+                var assetViewModel = package.CreateAsset(dir, assetItem, true, null);
+                Editor.Session.NotifyAssetPropertiesChanged(new[] { assetViewModel });
+                Editor.Session.ActiveAssetView.SelectAssets(new[] { assetViewModel });
+                Editor.Session.UndoRedoService.SetName(transaction, $"Create test asset '{name}'");
             }
 #endif
         }

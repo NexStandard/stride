@@ -227,16 +227,14 @@ namespace Stride.Assets.Presentation.AssetEditors.EntityHierarchyEditor.ViewMode
 
         public void UpdateTransformations([NotNull] IReadOnlyDictionary<AbsoluteId, TransformationTRS> transformations)
         {
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            foreach (var transformation in transformations)
             {
-                foreach (var transformation in transformations)
-                {
-                    var element = (EntityHierarchyElementViewModel)FindPartViewModel(transformation.Key);
-                    UpdateTransformations(element, transformation.Value);
-                }
-
-                UndoRedoService.SetName(transaction, "Update transformation");
+                var element = (EntityHierarchyElementViewModel)FindPartViewModel(transformation.Key);
+                UpdateTransformations(element, transformation.Value);
             }
+
+            UndoRedoService.SetName(transaction, "Update transformation");
         }
 
         protected virtual void UpdateTransformations(EntityHierarchyElementViewModel element, TransformationTRS transformation)
@@ -506,29 +504,27 @@ namespace Stride.Assets.Presentation.AssetEditors.EntityHierarchyEditor.ViewMode
                 }
             }
 
-            using (var transaction = UndoRedoService.CreateTransaction())
+            using var transaction = UndoRedoService.CreateTransaction();
+            var foldersToDelete = SelectedContent.OfType<EntityFolderViewModel>().ToList();
+            ClearSelection();
+
+            // Delete entities first
+            var entitiesPerScene = entitiesToDelete.GroupBy(x => x.Asset);
+            foreach (var entities in entitiesPerScene)
             {
-                var foldersToDelete = SelectedContent.OfType<EntityFolderViewModel>().ToList();
-                ClearSelection();
-
-                // Delete entities first
-                var entitiesPerScene = entitiesToDelete.GroupBy(x => x.Asset);
-                foreach (var entities in entitiesPerScene)
-                {
-                    HashSet<Tuple<Guid, Guid>> mapping;
-                    entities.Key.AssetHierarchyPropertyGraph.DeleteParts(entities.Select(x => x.EntityDesign), out mapping);
-                    var operation = new DeletedPartsTrackingOperation<EntityDesign, Entity>(entities.Key, mapping);
-                    UndoRedoService.PushOperation(operation);
-                }
-
-                // Then folders
-                foreach (var folder in foldersToDelete)
-                {
-                    folder.Delete();
-                }
-
-                UndoRedoService.SetName(transaction, "Delete selected entities");
+                HashSet<Tuple<Guid, Guid>> mapping;
+                entities.Key.AssetHierarchyPropertyGraph.DeleteParts(entities.Select(x => x.EntityDesign), out mapping);
+                var operation = new DeletedPartsTrackingOperation<EntityDesign, Entity>(entities.Key, mapping);
+                UndoRedoService.PushOperation(operation);
             }
+
+            // Then folders
+            foreach (var folder in foldersToDelete)
+            {
+                folder.Delete();
+            }
+
+            UndoRedoService.SetName(transaction, "Delete selected entities");
         }
 
         /// <inheritdoc />
@@ -575,15 +571,13 @@ namespace Stride.Assets.Presentation.AssetEditors.EntityHierarchyEditor.ViewMode
                 return;
             }
 
-            using (var transaction = UndoRedoService.CreateTransaction())
-            {
-                // Attempt to paste at the active root level
-                var root = ActiveRoot ?? HierarchyRoot;
-                await PasteIntoItems(root.Yield());
-                var actionName = $"Paste into {root.Asset.Name}";
+            using var transaction = UndoRedoService.CreateTransaction();
+            // Attempt to paste at the active root level
+            var root = ActiveRoot ?? HierarchyRoot;
+            await PasteIntoItems(root.Yield());
+            var actionName = $"Paste into {root.Asset.Name}";
 
-                UndoRedoService.SetName(transaction, actionName);
-            }
+            UndoRedoService.SetName(transaction, actionName);
         }
 
         /// <inheritdoc />

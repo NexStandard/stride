@@ -42,16 +42,14 @@ namespace Stride.Assets.Presentation.Templates
             var importedAssets = new List<AssetItem>();
             foreach (var file in files)
             {
-                using (var media = new FFmpegMedia())
+                using var media = new FFmpegMedia();
+                media.Open(file.ToWindowsPath());
+
+                var videoStream = media.Streams.OfType<VideoStream>().FirstOrDefault();
+                if (videoStream != null)
                 {
-                    media.Open(file.ToWindowsPath());
-                    
-                    var videoStream = media.Streams.OfType<VideoStream>().FirstOrDefault();
-                    if (videoStream != null)
-                    {
-                        var videoItem = ImportVideo(file, videoStream);
-                        importedAssets.Add(videoItem);
-                    }
+                    var videoItem = ImportVideo(file, videoStream);
+                    importedAssets.Add(videoItem);
                 }
             }
 

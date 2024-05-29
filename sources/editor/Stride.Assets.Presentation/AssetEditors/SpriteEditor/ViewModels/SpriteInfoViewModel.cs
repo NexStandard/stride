@@ -278,22 +278,20 @@ namespace Stride.Assets.Presentation.AssetEditors.SpriteEditor.ViewModels
                 return;
             }
 
-            using (var transaction = Editor.UndoRedoService.CreateTransaction())
+            using var transaction = Editor.UndoRedoService.CreateTransaction();
+            foreach (var image in children.OfType<SpriteInfoViewModel>())
             {
-                foreach (var image in children.OfType<SpriteInfoViewModel>())
-                {
-                    image.Editor.RemoveImage(image.GetSpriteInfo(), image.index);
-                }
-
-                var insertIndex = position == InsertPosition.After ? index + 1 : index;
-                insertIndex = MathUtil.Clamp(insertIndex, 0, Editor.Sprites.Count);
-
-                foreach (var image in children.OfType<SpriteInfoViewModel>())
-                {
-                    Editor.InsertImage(image.GetSpriteInfo(), insertIndex++);
-                }
-                Editor.UndoRedoService.SetName(transaction, "Move images");
+                image.Editor.RemoveImage(image.GetSpriteInfo(), image.index);
             }
+
+            var insertIndex = position == InsertPosition.After ? index + 1 : index;
+            insertIndex = MathUtil.Clamp(insertIndex, 0, Editor.Sprites.Count);
+
+            foreach (var image in children.OfType<SpriteInfoViewModel>())
+            {
+                Editor.InsertImage(image.GetSpriteInfo(), insertIndex++);
+            }
+            Editor.UndoRedoService.SetName(transaction, "Move images");
         }
 
         IObjectNode IPropertyProviderViewModel.GetRootNode()

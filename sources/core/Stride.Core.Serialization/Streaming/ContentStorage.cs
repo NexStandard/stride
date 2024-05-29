@@ -190,17 +190,15 @@ namespace Stride.Core.Streaming
             }
 
             // Create file with a raw data
-            using (var outputStream = contentManager.FileProvider.OpenStream(dataUrl, VirtualFileMode.Create, VirtualFileAccess.Write, VirtualFileShare.Read, StreamFlags.Seekable))
-            using (var stream = new BinaryWriter(outputStream))
-            {
-                // Write data (one after another)
-                for (int i = 0; i < chunksCount; i++)
-                    stream.Write(chunksData[chunksOrder[i]]);
+            using var outputStream = contentManager.FileProvider.OpenStream(dataUrl, VirtualFileMode.Create, VirtualFileAccess.Write, VirtualFileShare.Read, StreamFlags.Seekable);
+            using var stream = new BinaryWriter(outputStream);
+            // Write data (one after another)
+            for (int i = 0; i < chunksCount; i++)
+                stream.Write(chunksData[chunksOrder[i]]);
 
-                // Validate calculated offset
-                if (offset != outputStream.Position)
-                    throw new ContentStreamingException("Invalid storage offset.");
-            }
+            // Validate calculated offset
+            if (offset != outputStream.Position)
+                throw new ContentStreamingException("Invalid storage offset.");
         }
 
         /// <inheritdoc/>

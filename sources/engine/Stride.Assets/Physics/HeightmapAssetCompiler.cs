@@ -128,131 +128,129 @@ namespace Stride.Assets.Physics
 
                     // Convert pixels to heights
 
-                    using (var image = textureTool.ConvertToStrideImage(texImage))
+                    using var image = textureTool.ConvertToStrideImage(texImage);
+                    var pixelBuffer = image.PixelBuffer[0];
+                    var pixelBufferSize = new Int2(pixelBuffer.Width, pixelBuffer.Height);
+
+                    var minFloat = Parameters.FloatingPointComponentRange.X;
+                    var maxFloat = Parameters.FloatingPointComponentRange.Y;
+                    var isSNorm = (Math.Abs(-1 - minFloat) < float.Epsilon) && (Math.Abs(1 - maxFloat) < float.Epsilon);
+
+                    if (maxFloat < minFloat)
                     {
-                        var pixelBuffer = image.PixelBuffer[0];
-                        var pixelBufferSize = new Int2(pixelBuffer.Width, pixelBuffer.Height);
-
-                        var minFloat = Parameters.FloatingPointComponentRange.X;
-                        var maxFloat = Parameters.FloatingPointComponentRange.Y;
-                        var isSNorm = (Math.Abs(-1 - minFloat) < float.Epsilon) && (Math.Abs(1 - maxFloat) < float.Epsilon);
-
-                        if (maxFloat < minFloat)
-                        {
-                            throw new Exception($"{ nameof(Parameters.FloatingPointComponentRange) }.{ nameof(Parameters.FloatingPointComponentRange.Y) } should be greater than { nameof(Parameters.FloatingPointComponentRange.X) }.");
-                        }
-
-                        var useScaleToRange = Parameters.ScaleToHeightRange;
-
-                        switch (heightType)
-                        {
-                            case HeightfieldTypes.Float:
-                                {
-                                    float[] floats = null;
-
-                                    switch (image.Description.Format)
-                                    {
-                                        case PixelFormat.R32_Float:
-                                            floats = HeightmapUtils.Resize(pixelBuffer.GetPixels<float>(), pixelBufferSize, size);
-                                            floats = isSNorm ?
-                                                floats :
-                                                HeightmapUtils.ConvertToFloatHeights(floats, minFloat, maxFloat);
-                                            break;
-
-                                        case PixelFormat.R16_SNorm:
-                                            var shorts = HeightmapUtils.Resize(pixelBuffer.GetPixels<short>(), pixelBufferSize, size);
-                                            floats = !isConvertedR16 && Parameters.IsSymmetricShortComponent ?
-                                                HeightmapUtils.ConvertToFloatHeights(shorts, -short.MaxValue, short.MaxValue) :
-                                                HeightmapUtils.ConvertToFloatHeights(shorts);
-                                            break;
-
-                                        case PixelFormat.R8_UNorm:
-                                            var bytes = HeightmapUtils.Resize(pixelBuffer.GetPixels<byte>(), pixelBufferSize, size);
-                                            floats = HeightmapUtils.ConvertToFloatHeights(bytes);
-                                            break;
-                                    }
-
-                                    if (useScaleToRange)
-                                    {
-                                        ScaleToHeightRange(floats, -1, 1, heightRange, heightScale, commandContext);
-                                    }
-
-                                    heightmap = Heightmap.Create(size, heightType, heightRange, heightScale, floats);
-                                }
-                                break;
-
-                            case HeightfieldTypes.Short:
-                                {
-                                    short[] shorts = null;
-
-                                    switch (image.Description.Format)
-                                    {
-                                        case PixelFormat.R32_Float:
-                                            var floats = HeightmapUtils.Resize(pixelBuffer.GetPixels<float>(), pixelBufferSize, size);
-                                            shorts = HeightmapUtils.ConvertToShortHeights(floats, minFloat, maxFloat);
-                                            break;
-
-                                        case PixelFormat.R16_SNorm:
-                                            shorts = HeightmapUtils.Resize(pixelBuffer.GetPixels<short>(), pixelBufferSize, size);
-                                            shorts = !isConvertedR16 && Parameters.IsSymmetricShortComponent ?
-                                                shorts :
-                                                HeightmapUtils.ConvertToShortHeights(shorts);
-                                            break;
-
-                                        case PixelFormat.R8_UNorm:
-                                            var bytes = HeightmapUtils.Resize(pixelBuffer.GetPixels<byte>(), pixelBufferSize, size);
-                                            shorts = HeightmapUtils.ConvertToShortHeights(bytes);
-                                            break;
-                                    }
-
-                                    if (useScaleToRange)
-                                    {
-                                        ScaleToHeightRange(shorts, short.MinValue, short.MaxValue, heightRange, heightScale, commandContext);
-                                    }
-
-                                    heightmap = Heightmap.Create(size, heightType, heightRange, heightScale, shorts);
-                                }
-                                break;
-
-                            case HeightfieldTypes.Byte:
-                                {
-                                    byte[] bytes = null;
-
-                                    switch (image.Description.Format)
-                                    {
-                                        case PixelFormat.R32_Float:
-                                            var floats = HeightmapUtils.Resize(pixelBuffer.GetPixels<float>(), pixelBufferSize, size);
-                                            bytes = HeightmapUtils.ConvertToByteHeights(floats, minFloat, maxFloat);
-                                            break;
-
-                                        case PixelFormat.R16_SNorm:
-                                            var shorts = HeightmapUtils.Resize(pixelBuffer.GetPixels<short>(), pixelBufferSize, size);
-                                            bytes = !isConvertedR16 && Parameters.IsSymmetricShortComponent ?
-                                                HeightmapUtils.ConvertToByteHeights(shorts, -short.MaxValue, short.MaxValue) :
-                                                HeightmapUtils.ConvertToByteHeights(shorts);
-                                            break;
-
-                                        case PixelFormat.R8_UNorm:
-                                            bytes = HeightmapUtils.Resize(pixelBuffer.GetPixels<byte>(), pixelBufferSize, size);
-                                            break;
-                                    }
-
-                                    if (useScaleToRange)
-                                    {
-                                        ScaleToHeightRange(bytes, byte.MinValue, byte.MaxValue, heightRange, heightScale, commandContext);
-                                    }
-
-                                    heightmap = Heightmap.Create(size, heightType, heightRange, heightScale, bytes);
-                                }
-                                break;
-
-                            default:
-                                throw new Exception($"{ heightType } height type is not supported.");
-                        }
-
-                        commandContext.Logger.Info($"[{Url}] Convert Image(Format={ texImage.Format }, Width={ texImage.Width }, Height={ texImage.Height }) " +
-                            $"to Heightmap(HeightType={ heightType }, MinHeight={ heightRange.X }, MaxHeight={ heightRange.Y }, HeightScale={ heightScale }, Size={ size }).");
+                        throw new Exception($"{nameof(Parameters.FloatingPointComponentRange)}.{nameof(Parameters.FloatingPointComponentRange.Y)} should be greater than {nameof(Parameters.FloatingPointComponentRange.X)}.");
                     }
+
+                    var useScaleToRange = Parameters.ScaleToHeightRange;
+
+                    switch (heightType)
+                    {
+                        case HeightfieldTypes.Float:
+                            {
+                                float[] floats = null;
+
+                                switch (image.Description.Format)
+                                {
+                                    case PixelFormat.R32_Float:
+                                        floats = HeightmapUtils.Resize(pixelBuffer.GetPixels<float>(), pixelBufferSize, size);
+                                        floats = isSNorm ?
+                                            floats :
+                                            HeightmapUtils.ConvertToFloatHeights(floats, minFloat, maxFloat);
+                                        break;
+
+                                    case PixelFormat.R16_SNorm:
+                                        var shorts = HeightmapUtils.Resize(pixelBuffer.GetPixels<short>(), pixelBufferSize, size);
+                                        floats = !isConvertedR16 && Parameters.IsSymmetricShortComponent ?
+                                            HeightmapUtils.ConvertToFloatHeights(shorts, -short.MaxValue, short.MaxValue) :
+                                            HeightmapUtils.ConvertToFloatHeights(shorts);
+                                        break;
+
+                                    case PixelFormat.R8_UNorm:
+                                        var bytes = HeightmapUtils.Resize(pixelBuffer.GetPixels<byte>(), pixelBufferSize, size);
+                                        floats = HeightmapUtils.ConvertToFloatHeights(bytes);
+                                        break;
+                                }
+
+                                if (useScaleToRange)
+                                {
+                                    ScaleToHeightRange(floats, -1, 1, heightRange, heightScale, commandContext);
+                                }
+
+                                heightmap = Heightmap.Create(size, heightType, heightRange, heightScale, floats);
+                            }
+                            break;
+
+                        case HeightfieldTypes.Short:
+                            {
+                                short[] shorts = null;
+
+                                switch (image.Description.Format)
+                                {
+                                    case PixelFormat.R32_Float:
+                                        var floats = HeightmapUtils.Resize(pixelBuffer.GetPixels<float>(), pixelBufferSize, size);
+                                        shorts = HeightmapUtils.ConvertToShortHeights(floats, minFloat, maxFloat);
+                                        break;
+
+                                    case PixelFormat.R16_SNorm:
+                                        shorts = HeightmapUtils.Resize(pixelBuffer.GetPixels<short>(), pixelBufferSize, size);
+                                        shorts = !isConvertedR16 && Parameters.IsSymmetricShortComponent ?
+                                            shorts :
+                                            HeightmapUtils.ConvertToShortHeights(shorts);
+                                        break;
+
+                                    case PixelFormat.R8_UNorm:
+                                        var bytes = HeightmapUtils.Resize(pixelBuffer.GetPixels<byte>(), pixelBufferSize, size);
+                                        shorts = HeightmapUtils.ConvertToShortHeights(bytes);
+                                        break;
+                                }
+
+                                if (useScaleToRange)
+                                {
+                                    ScaleToHeightRange(shorts, short.MinValue, short.MaxValue, heightRange, heightScale, commandContext);
+                                }
+
+                                heightmap = Heightmap.Create(size, heightType, heightRange, heightScale, shorts);
+                            }
+                            break;
+
+                        case HeightfieldTypes.Byte:
+                            {
+                                byte[] bytes = null;
+
+                                switch (image.Description.Format)
+                                {
+                                    case PixelFormat.R32_Float:
+                                        var floats = HeightmapUtils.Resize(pixelBuffer.GetPixels<float>(), pixelBufferSize, size);
+                                        bytes = HeightmapUtils.ConvertToByteHeights(floats, minFloat, maxFloat);
+                                        break;
+
+                                    case PixelFormat.R16_SNorm:
+                                        var shorts = HeightmapUtils.Resize(pixelBuffer.GetPixels<short>(), pixelBufferSize, size);
+                                        bytes = !isConvertedR16 && Parameters.IsSymmetricShortComponent ?
+                                            HeightmapUtils.ConvertToByteHeights(shorts, -short.MaxValue, short.MaxValue) :
+                                            HeightmapUtils.ConvertToByteHeights(shorts);
+                                        break;
+
+                                    case PixelFormat.R8_UNorm:
+                                        bytes = HeightmapUtils.Resize(pixelBuffer.GetPixels<byte>(), pixelBufferSize, size);
+                                        break;
+                                }
+
+                                if (useScaleToRange)
+                                {
+                                    ScaleToHeightRange(bytes, byte.MinValue, byte.MaxValue, heightRange, heightScale, commandContext);
+                                }
+
+                                heightmap = Heightmap.Create(size, heightType, heightRange, heightScale, bytes);
+                            }
+                            break;
+
+                        default:
+                            throw new Exception($"{heightType} height type is not supported.");
+                    }
+
+                    commandContext.Logger.Info($"[{Url}] Convert Image(Format={texImage.Format}, Width={texImage.Width}, Height={texImage.Height}) " +
+                        $"to Heightmap(HeightType={heightType}, MinHeight={heightRange.X}, MaxHeight={heightRange.Y}, HeightScale={heightScale}, Size={size}).");
                 }
 
                 if (heightmap == null)

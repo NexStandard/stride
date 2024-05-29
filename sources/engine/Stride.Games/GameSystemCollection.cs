@@ -161,8 +161,8 @@ namespace Stride.Games
 
             foreach (var contentable in currentlyContentGameSystems)
             {
-                using (var profile = Profiler.Begin(GameProfilingKeys.GameSystemLoadContent, GetGameSystemName(contentable)))
-                    contentable.LoadContent();
+                using var profile = Profiler.Begin(GameProfilingKeys.GameSystemLoadContent, GetGameSystemName(contentable));
+                contentable.LoadContent();
             }
 
             currentlyContentGameSystems.Clear();
@@ -219,8 +219,8 @@ namespace Stride.Games
                 if (State == GameSystemState.ContentLoaded && pendingGameSystems[0] is IContentable)
                 {
                     var contentable = (IContentable)pendingGameSystems[0];
-                    using (var profile = Profiler.Begin(GameProfilingKeys.GameSystemLoadContent, gameSystemName))
-                        contentable.LoadContent();
+                    using var profile = Profiler.Begin(GameProfilingKeys.GameSystemLoadContent, gameSystemName);
+                    contentable.LoadContent();
                 }
 
                 pendingGameSystems.RemoveAt(0);

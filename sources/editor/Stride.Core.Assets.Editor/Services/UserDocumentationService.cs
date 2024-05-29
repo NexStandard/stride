@@ -185,25 +185,23 @@ namespace Stride.Core.Assets.Editor.Services
 
             try
             {
-                using (var reader = new StreamReader(filePath))
+                using var reader = new StreamReader(filePath);
+                var doc = new XmlDocument();
+                doc.Load(reader);
+
+                foreach (XmlNode node in doc.GetElementsByTagName("userdoc"))
                 {
-                    var doc = new XmlDocument();
-                    doc.Load(reader);
+                    var key = node.ParentNode.Attributes["name"]?.Value;
+                    var documentation = node.InnerText.Trim();
 
-                    foreach (XmlNode node in doc.GetElementsByTagName("userdoc"))
+                    if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(documentation))
                     {
-                        var key = node.ParentNode.Attributes["name"]?.Value;
-                        var documentation = node.InnerText.Trim();
+                        continue;
+                    }
 
-                        if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(documentation))
-                        {
-                            continue;
-                        }
-
-                        lock (lockObj)
-                        {
-                            cachedDocumentations[key] = documentation;
-                        }
+                    lock (lockObj)
+                    {
+                        cachedDocumentations[key] = documentation;
                     }
                 }
             }
@@ -230,31 +228,29 @@ namespace Stride.Core.Assets.Editor.Services
 
             try
             {
-                using (var reader = new StreamReader(filePath))
+                using var reader = new StreamReader(filePath);
+                int lineNumber = 0;
+                while (!reader.EndOfStream)
                 {
-                    int lineNumber = 0;
-                    while (!reader.EndOfStream)
+                    var line = reader.ReadLine();
+                    if (string.IsNullOrWhiteSpace(line))
+                        continue;
+
+                    lineNumber++;
+
+                    var separator = line.IndexOf('=');
+                    if (separator < 0 || separator >= line.Length - 1)
                     {
-                        var line = reader.ReadLine();
-                        if (string.IsNullOrWhiteSpace(line))
-                            continue;
+                        Log.Warning($"Invalid doc format. File: {filePath}, Line {lineNumber}");
+                        continue;
+                    }
 
-                        lineNumber++;
+                    var key = line.Substring(0, separator);
+                    var documentation = line.Substring(separator + 1);
 
-                        var separator = line.IndexOf('=');
-                        if (separator < 0 || separator >= line.Length - 1)
-                        {
-                            Log.Warning($"Invalid doc format. File: {filePath}, Line {lineNumber}");
-                            continue;
-                        }
-
-                        var key = line.Substring(0, separator);
-                        var documentation = line.Substring(separator + 1);
-
-                        lock (lockObj)
-                        {
-                            cachedDocumentations[key] = documentation;
-                        }
+                    lock (lockObj)
+                    {
+                        cachedDocumentations[key] = documentation;
                     }
                 }
             }

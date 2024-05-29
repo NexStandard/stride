@@ -42,14 +42,12 @@ namespace Stride.Assets.Effect
             var urlRoot = originalSourcePath.GetParent();
 
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(((EffectLogAsset)assetItem.Asset).Text));
-            using (var recordedEffectCompile = new EffectLogStore(stream))
-            {
-                recordedEffectCompile.LoadNewValues();
+            using var recordedEffectCompile = new EffectLogStore(stream);
+            recordedEffectCompile.LoadNewValues();
 
-                foreach (var entry in recordedEffectCompile.GetValues())
-                {
-                    result.BuildSteps.Add(EffectCompileCommand.FromRequest(context, assetItem.Package, urlRoot, entry.Key));
-                }
+            foreach (var entry in recordedEffectCompile.GetValues())
+            {
+                result.BuildSteps.Add(EffectCompileCommand.FromRequest(context, assetItem.Package, urlRoot, entry.Key));
             }
         }
     }
