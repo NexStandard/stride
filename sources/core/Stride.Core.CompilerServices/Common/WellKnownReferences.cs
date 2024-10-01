@@ -36,7 +36,15 @@ internal static class WellKnownReferences
         return compilation.GetTypeByMetadataName(ModuleInitializerAttributeName);
     }
     internal const string ModuleInitializerAttributeName = "Stride.Core.ModuleInitializerAttribute";
-    public static bool HasAttribute(this ISymbol symbol, INamedTypeSymbol attribute)
+    /// <summary>
+    /// Checks the attributes applied to a symbol and determines if any of them
+    /// match the given attribute type.
+    /// </summary>
+    /// <param name="symbol">The <see cref="ISymbol"/> to check for the attribute.</param>
+    /// <param name="attribute">The <see cref="INamedTypeSymbol"/> representing the attribute type to look for.</param>
+    /// <returns>
+    /// Returns <c>true</c> if the symbol has the specified attribute; otherwise, <c>false</c>.
+    /// </returns>
     internal static bool HasAttribute(this ISymbol symbol, INamedTypeSymbol attribute)
     {
         if (symbol.GetAttributes().Any(attr => attr.AttributeClass?.OriginalDefinition.Equals(attribute, SymbolEqualityComparer.Default) ?? false))
