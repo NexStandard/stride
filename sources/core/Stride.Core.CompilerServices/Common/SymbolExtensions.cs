@@ -3,14 +3,14 @@ using System.Diagnostics.CodeAnalysis;
 namespace Stride.Core.CompilerServices.Common;
 internal static class SymbolExtensions
 {
-    public static bool IsVisibleToSerializer(this ISymbol symbol, INamedTypeSymbol dataMemberAttribute)
+    internal static bool IsVisibleToSerializer(this ISymbol symbol, INamedTypeSymbol dataMemberAttribute)
     {
         if (symbol.HasAttribute(dataMemberAttribute))
             return IsVisibleToSerializer(symbol, hasDataMemberAttribute: true);
         return IsVisibleToSerializer(symbol, hasDataMemberAttribute: false);
     }
 
-    public static bool IsVisibleToSerializer(this ISymbol symbol, bool hasDataMemberAttribute)
+    internal static bool IsVisibleToSerializer(this ISymbol symbol, bool hasDataMemberAttribute)
     {
         var accessibility = symbol.DeclaredAccessibility;
 
@@ -26,7 +26,7 @@ internal static class SymbolExtensions
     /// <param name="attribute">The attribute looking for</param>
     /// <param name="attributeData">The <see cref="AttributeData"/> of the Attribute if it is found</param>
     /// <returns>true if the attribute is found, else false</returns>
-    public static bool TryGetAttribute(this ISymbol symbol, INamedTypeSymbol attribute, [MaybeNullWhen(false)] out AttributeData attributeData)
+    internal static bool TryGetAttribute(this ISymbol symbol, INamedTypeSymbol attribute, [MaybeNullWhen(false)] out AttributeData attributeData)
     {
         attributeData = symbol.GetAttributes().FirstOrDefault(attr => attr.AttributeClass?.OriginalDefinition.Equals(attribute, SymbolEqualityComparer.Default) ?? false)!;
         return attributeData is not null;
@@ -38,12 +38,12 @@ internal static class SymbolExtensions
     /// </summary>
     /// <param name="type">The Type to check against</param>
     /// <returns>true when it's an Immutable Type</returns>
-    public static bool IsImmutableType(this ITypeSymbol type)
+    internal static bool IsImmutableType(this ITypeSymbol type)
     {
         return type.SpecialType == SpecialType.System_String || !type.IsReferenceType;
     }
 
-    public static bool HasDataMemberMode(this ISymbol symbol, SymbolAnalysisContext context, INamedTypeSymbol dataMemberAttribute, INamedTypeSymbol dataMemberMode, int mode)
+    internal static bool HasDataMemberMode(this ISymbol symbol, SymbolAnalysisContext context, INamedTypeSymbol dataMemberAttribute, INamedTypeSymbol dataMemberMode, int mode)
     {
         var attributes = symbol.GetAttributes();
         foreach (var attribute in attributes)
