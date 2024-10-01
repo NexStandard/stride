@@ -43,7 +43,7 @@ internal static class SymbolExtensions
         return type.SpecialType == SpecialType.System_String || !type.IsReferenceType;
     }
 
-    internal static bool HasDataMemberMode(this ISymbol symbol, SymbolAnalysisContext context, INamedTypeSymbol dataMemberAttribute, INamedTypeSymbol dataMemberMode, int mode)
+    internal static bool HasDataMemberMode(this ISymbol symbol, INamedTypeSymbol dataMemberAttribute, INamedTypeSymbol dataMemberMode, int mode)
     {
         var attributes = symbol.GetAttributes();
         foreach (var attribute in attributes)

@@ -51,7 +51,7 @@ public class STRDIAG002InvalidContentMode : DiagnosticAnalyzer
             return;
 
         // 2 is the Enums Value of DataMemberMode for Content
-        if (!symbol.HasDataMemberMode(context, dataMemberAttribute, dataMembermode, 2))
+        if (!symbol.HasDataMemberMode(dataMemberAttribute, dataMembermode, 2))
             return;
         var fieldType = symbol.Type;
         if (fieldType.IsImmutableType())
@@ -70,7 +70,7 @@ public class STRDIAG002InvalidContentMode : DiagnosticAnalyzer
             return;
 
         // 2 is the Enums Value of DataMemberMode for Content
-        if (!symbol.HasDataMemberMode(context, dataMemberAttribute, dataMembermode, 2))
+        if (!symbol.HasDataMemberMode(dataMemberAttribute, dataMembermode, 2))
             return;
         var fieldType = symbol.Type;
         if (fieldType.IsImmutableType())
