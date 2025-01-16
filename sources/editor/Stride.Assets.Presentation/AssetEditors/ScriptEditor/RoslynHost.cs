@@ -47,8 +47,13 @@ namespace Stride.Assets.Presentation.AssetEditors.ScriptEditor
             hostServices = MefHostServices.Create(compositionContext);
 
             // Create default workspace
+            try { 
             workspace = new RoslynWorkspace(this);
-            workspace.EnableDiagnostics(DiagnosticOptions.Semantic | DiagnosticOptions.Syntax);
+            } catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+            // workspace.EnableDiagnostics();
 
             GetService<IDiagnosticService>().DiagnosticsUpdated += OnDiagnosticsUpdated;
 
